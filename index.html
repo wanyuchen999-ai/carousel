@@ -181,7 +181,6 @@
         let cloud = null;               // Supabase 客户端（未配置则为 null）
         let mode = 'base';              // 'base' 公共照片墙 | 'album' 专属相册
         let albumId = null;
-        const PUBLIC_ALBUM = 'public';  // 公共照片墙的固定相册（所有人可上传）
         let isOwner = false;
         const visitorId = (() => {      // 每台浏览器一个随机身份，不用登录
             let v = localStorage.getItem('car_visitor');
@@ -746,8 +745,8 @@
         });
 
         function canMutate() {
-            // 公共照片墙：任何人都能上传/换音乐/交换；专属相册：只有主人
-            return cloud ? (mode === 'base' || (mode === 'album' && isOwner)) : true;
+            // 公共入口页任何人都能上传（各自生成专属相册）；专属相册只有主人能操作
+            return cloud ? (mode === 'album' ? isOwner : true) : true;
         }
 
         /* ---------- 交换位置 ---------- */
@@ -838,23 +837,14 @@
                 const ok = await loadAlbum(g);
                 if (!ok) {
                     toast(`链接里的相册「${g}」不存在——让分享的人检查链接，或在左上角输入相册编号`);
-                    await loadPublicWall();
+                    placeBase();
                 }
-            } else if (cloud) {
-                await loadPublicWall();
             } else {
+                // 公共网址只是"入口"：不挂任何人的照片；
+                // 每个人在这里上传时会自动生成自己的专属相册和链接
                 placeBase();
             }
             refreshUI();
-        }
-
-        // 公共照片墙：固定相册，所有人可上传、共同装扮
-        async function loadPublicWall() {
-            mode = 'base'; albumId = PUBLIC_ALBUM;
-            placeBase();
-            const { data: rows } = await cloud.from('photos').select('*').eq('album_id', PUBLIC_ALBUM).order('slot');
-            (rows || []).forEach(applyPhotoRow);
-            subscribeRealtime(PUBLIC_ALBUM);
         }
 
         function subscribeRealtime(g) {
@@ -922,14 +912,13 @@
                         bmp.close?.();
                         continue;
                     }
-                    // 云上传目标：专属相册传自己的；公共照片墙传 public（任何人可传）
-                    const target = mode === 'album' ? albumId : PUBLIC_ALBUM;
-                    const path = `${target}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+                    await ensureAlbum();   // 上传即自动创建你的专属相册，网址随之切换
+                    const path = `${albumId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
                     const up = await cloud.storage.from('media').upload(path, blob, { contentType: 'image/jpeg' });
                     if (up.error) { toast('上传失败：' + up.error.message); continue; }
                     const url = cloud.storage.from('media').getPublicUrl(path).data.publicUrl;
                     const { data: added, error } = await cloud.rpc('add_photo', {
-                        p_album: target, p_owner: visitorId, p_url: url, p_path: path, p_nickname: nickname
+                        p_album: albumId, p_owner: visitorId, p_url: url, p_path: path, p_nickname: nickname
                     });
                     if (error) { toast('保存失败：' + error.message); continue; }
                     // 服务端轮换替换掉的旧照片 → 顺手清掉存储文件
@@ -981,14 +970,19 @@
                 toast(`🎵 正在播放：${label}（本地演示，只有你自己能听到）`);
                 return;
             }
-            // 目标相册：专属相册只有主人能改；公共照片墙任何人都能换（后改的生效）
-            const target = mode === 'album' ? albumId : PUBLIC_ALBUM;
+            // 音乐跟着相册走：公共入口页选的音乐只在自己浏览器里试听；
+            // 进入专属相册后选的音乐才会保存并分享给访客
+            if (mode !== 'album' || !isOwner) {
+                setMusic(URL.createObjectURL(file), label);
+                toast(`🎵 正在试听：${label}（进入专属相册后更换才能保存分享）`);
+                return;
+            }
             try {
-                const path = `music/${target}/bgm`;
+                const path = `music/${albumId}/bgm`;
                 const up = await cloud.storage.from('media').upload(path, file, { upsert: true });
                 if (up.error) { toast('音乐上传失败：' + up.error.message); return; }
                 const url = cloud.storage.from('media').getPublicUrl(path).data.publicUrl;
-                const { error } = await cloud.rpc('set_album_music', { p_album: target, p_owner: visitorId, p_url: url });
+                const { error } = await cloud.rpc('set_album_music', { p_album: albumId, p_owner: visitorId, p_url: url });
                 if (error) { toast('音乐保存失败：' + error.message); return; }
                 setMusic(url, label);
                 toast('🎵 音乐已更换，打开这个网址的人都会听到这首');
@@ -1016,11 +1010,12 @@
                 modeLine.textContent = '公共木马 · 本地演示：照片刷新后消失';
                 btnUpload.classList.add('show'); btnMusic.classList.add('show');
             } else if (mode === 'base') {
-                setStatus('已连接云 · 公共照片墙');
-                modeLine.textContent = '公共照片墙 · 所有人都能上传，共同装扮这匹木马';
+                // 公共入口页：上传会自动生成你的专属相册和链接
+                document.getElementById('code-entry').classList.add('show');
+                setStatus('已连接云 · 公共木马');
+                modeLine.textContent = '公共木马 · 上传照片后会生成你的专属链接';
                 btnUpload.classList.add('show'); btnMusic.classList.add('show');
-                btnShare.classList.add('show'); btnAlbum.classList.add('show');
-                document.getElementById('code-entry').classList.add('show');   // 备用入口：输编号进相册
+                btnAlbum.classList.add('show');
             } else if (isOwner) {
                 setStatus('我的相册 · 可编辑');
                 modeLine.textContent = `我的专属相册 · 相册编号 ${albumId}`;
