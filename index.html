@@ -802,11 +802,16 @@
             document.getElementById('loading').classList.add('hide');
 
             cloud = await initCloud();
-            const g = new URLSearchParams(location.search).get('g');
+            // 分享链接经常被聊天软件截断或粘上标点（如「?g=abc12。」），这里自动清洗
+            let g = new URLSearchParams(location.search).get('g');
+            if (g) g = g.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || null;
 
             if (cloud && g) {
                 const ok = await loadAlbum(g);
-                if (!ok) { toast('未找到相册，回到公共照片墙'); await loadPublicWall(); }
+                if (!ok) {
+                    toast(`链接里的相册「${g}」不存在——请确认链接完整（应以 ?g=xxxxx 结尾）`);
+                    await loadPublicWall();
+                }
             } else if (cloud) {
                 await loadPublicWall();
             } else {
