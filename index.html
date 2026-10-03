@@ -885,14 +885,22 @@
             return await new Promise(r => c.toBlob(r, 'image/jpeg', quality));
         }
 
-        // 创建专属相册（只在点「创建我的专属相册」按钮时触发）
+        // 创建/复用专属相册：每台浏览器固定绑定一个相册，所有上传都进同一个，
+        // 分享链接长期有效（避免"每次上传新建相册"导致照片分散、旧照片不在链接里）
         async function ensureAlbum() {
             if (mode === 'album') return;
+            const stored = localStorage.getItem('car_my_album');
+            if (stored && await loadAlbum(stored)) {
+                history.replaceState(null, '', location.pathname + '?g=' + albumId);
+                refreshUI();
+                return;
+            }
             albumId = Array.from(crypto.getRandomValues(new Uint8Array(5)))
                 .map(b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
             const { error } = await withRetry(() =>
                 cloud.rpc('create_album', { p_id: albumId, p_owner: visitorId }));
             if (error) { toast('创建相册失败：' + error.message); throw error; }
+            localStorage.setItem('car_my_album', albumId);
             mode = 'album'; isOwner = true;
             history.replaceState(null, '', location.pathname + '?g=' + albumId);
             resetWall();
