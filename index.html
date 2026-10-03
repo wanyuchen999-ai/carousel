@@ -88,6 +88,28 @@
         @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
         #credit { bottom: 8px; right: 12px; font-size: 10px; color: #55506e; pointer-events: none; }
+
+        /* 手机窄屏适配 */
+        #controls { flex-wrap: wrap; max-width: 94vw; justify-content: center; }
+        #hint { white-space: normal; width: min(92vw, 560px); text-align: center; }
+
+        /* 相册编号输入（链接被聊天软件截断时的备用入口） */
+        #code-entry {
+            position: fixed; top: 88px; left: 20px; z-index: 20;
+            display: none; gap: 6px; align-items: center;
+        }
+        #code-entry.show { display: flex; }
+        #album-code {
+            background: rgba(20, 18, 40, 0.75); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 220, 160, 0.35); border-radius: 999px;
+            color: #ffe9c4; padding: 8px 14px; font-size: 13px; width: 120px; outline: none;
+        }
+        #album-code::placeholder { color: #9a94bd; }
+        #btn-open-code {
+            background: rgba(70, 55, 110, 0.85); color: #ffe9c4;
+            border: 1px solid rgba(255, 220, 160, 0.35); border-radius: 999px;
+            padding: 8px 14px; font-size: 13px; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -96,6 +118,10 @@
     <div class="hud" id="title-card">
         <h1>🎵 八音盒旋转木马</h1>
         <div id="mode-line">公共木马 · 上传照片生成你的专属链接</div>
+    </div>
+    <div id="code-entry">
+        <input id="album-code" maxlength="6" placeholder="相册编号">
+        <button id="btn-open-code">打开</button>
     </div>
     <div class="hud" id="status-chip">正在初始化…</div>
     <div class="hud" id="hint">按住空白处左右拖动 → 推动木马 · 碰到照片/丝线 → 拨动它们 · 拖一张照片到另一张上 → 交换位置</div>
@@ -802,14 +828,16 @@
             document.getElementById('loading').classList.add('hide');
 
             cloud = await initCloud();
-            // 分享链接经常被聊天软件截断或粘上标点（如「?g=abc12。」），这里自动清洗
+            // 分享链接经常被聊天软件截断或粘上标点（如「?g=abc12。」），这里自动清洗。
+            // 同时支持更短的哈希格式：网址末尾 #编号
             let g = new URLSearchParams(location.search).get('g');
+            if (!g && location.hash.length > 1) g = location.hash.slice(1);
             if (g) g = g.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || null;
 
             if (cloud && g) {
                 const ok = await loadAlbum(g);
                 if (!ok) {
-                    toast(`链接里的相册「${g}」不存在——请确认链接完整（应以 ?g=xxxxx 结尾）`);
+                    toast(`链接里的相册「${g}」不存在——让分享的人检查链接，或在左上角输入相册编号`);
                     await loadPublicWall();
                 }
             } else if (cloud) {
@@ -992,13 +1020,16 @@
                 modeLine.textContent = '公共照片墙 · 所有人都能上传，共同装扮这匹木马';
                 btnUpload.classList.add('show'); btnMusic.classList.add('show');
                 btnShare.classList.add('show'); btnAlbum.classList.add('show');
+                document.getElementById('code-entry').classList.add('show');   // 备用入口：输编号进相册
             } else if (isOwner) {
                 setStatus('我的相册 · 可编辑');
-                modeLine.textContent = '我的专属相册 · 把链接分享给朋友吧';
+                modeLine.textContent = `我的专属相册 · 相册编号 ${albumId}`;
                 btnUpload.classList.add('show'); btnMusic.classList.add('show'); btnShare.classList.add('show');
+                document.getElementById('code-entry').classList.remove('show');
             } else {
                 setStatus('访客模式 · 只能看');
-                modeLine.textContent = '朋友的专属相册 · 尽情推木马、拨照片吧';
+                modeLine.textContent = `朋友的专属相册（编号 ${albumId}）· 尽情推木马、拨照片吧`;
+                document.getElementById('code-entry').classList.remove('show');
             }
         }
 
@@ -1019,14 +1050,24 @@
             await ensureAlbum();
             toast('🎁 专属相册已创建！上传照片后把链接发给朋友吧');
         };
+        // 备用入口：手动输入相册编号（链接被聊天软件截断时用）
+        const openCode = () => {
+            const code = document.getElementById('album-code').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!code) { toast('先输入 5 位相册编号（分享的人可以在页面左上角看到）'); return; }
+            location.href = location.pathname + '?g=' + code;
+        };
+        document.getElementById('btn-open-code').onclick = openCode;
+        document.getElementById('album-code').addEventListener('keydown', e => { if (e.key === 'Enter') openCode(); });
         document.getElementById('btn-share').onclick = async () => {
-            try { await navigator.clipboard.writeText(location.href); toast('🔗 链接已复制，发给朋友吧！'); }
+            try { await navigator.clipboard.writeText(location.href); }
             catch {
                 const ta = document.createElement('textarea');
                 ta.value = location.href; document.body.appendChild(ta); ta.select();
                 document.execCommand('copy'); ta.remove();
-                toast('🔗 链接已复制，发给朋友吧！');
             }
+            toast(mode === 'album'
+                ? `🔗 链接已复制！如果朋友打不开，让TA打开首页输入相册编号 ${albumId}`
+                : '🔗 链接已复制，发给朋友吧！');
         };
 
         /* ============================================================
