@@ -800,6 +800,19 @@
             return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         }
 
+        // 网络不稳时自动重试（间隔递增）
+        async function withRetry(fn, n = 3, label = '') {
+            let lastErr;
+            for (let i = 1; i <= n; i++) {
+                try { return await fn(); }
+                catch (e) {
+                    lastErr = e;
+                    if (i < n) await new Promise(r => setTimeout(r, 800 * i));
+                }
+            }
+            throw lastErr;
+        }
+
         function resetWall() {
             [...photos].forEach(removePolaroid);
             placeBase();
@@ -877,7 +890,8 @@
             if (mode === 'album') return;
             albumId = Array.from(crypto.getRandomValues(new Uint8Array(5)))
                 .map(b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
-            const { error } = await cloud.rpc('create_album', { p_id: albumId, p_owner: visitorId });
+            const { error } = await withRetry(() =>
+                cloud.rpc('create_album', { p_id: albumId, p_owner: visitorId }));
             if (error) { toast('创建相册失败：' + error.message); throw error; }
             mode = 'album'; isOwner = true;
             history.replaceState(null, '', location.pathname + '?g=' + albumId);
@@ -914,12 +928,14 @@
                     }
                     await ensureAlbum();   // 上传即自动创建你的专属相册，网址随之切换
                     const path = `${albumId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-                    const up = await cloud.storage.from('media').upload(path, blob, { contentType: 'image/jpeg' });
+                    const up = await withRetry(() =>
+                        cloud.storage.from('media').upload(path, blob, { contentType: 'image/jpeg' }));
                     if (up.error) { toast('上传失败：' + up.error.message); continue; }
                     const url = cloud.storage.from('media').getPublicUrl(path).data.publicUrl;
-                    const { data: added, error } = await cloud.rpc('add_photo', {
-                        p_album: albumId, p_owner: visitorId, p_url: url, p_path: path, p_nickname: nickname
-                    });
+                    const { data: added, error } = await withRetry(() =>
+                        cloud.rpc('add_photo', {
+                            p_album: albumId, p_owner: visitorId, p_url: url, p_path: path, p_nickname: nickname
+                        }));
                     if (error) { toast('保存失败：' + error.message); continue; }
                     // 服务端轮换替换掉的旧照片 → 顺手清掉存储文件
                     if (added && added.replaced_path) cloud.storage.from('media').remove([added.replaced_path]);
@@ -979,10 +995,12 @@
             }
             try {
                 const path = `music/${albumId}/bgm`;
-                const up = await cloud.storage.from('media').upload(path, file, { upsert: true });
+                const up = await withRetry(() =>
+                    cloud.storage.from('media').upload(path, file, { upsert: true }));
                 if (up.error) { toast('音乐上传失败：' + up.error.message); return; }
                 const url = cloud.storage.from('media').getPublicUrl(path).data.publicUrl;
-                const { error } = await cloud.rpc('set_album_music', { p_album: albumId, p_owner: visitorId, p_url: url });
+                const { error } = await withRetry(() =>
+                    cloud.rpc('set_album_music', { p_album: albumId, p_owner: visitorId, p_url: url }));
                 if (error) { toast('音乐保存失败：' + error.message); return; }
                 setMusic(url, label);
                 toast('🎵 音乐已更换，打开这个网址的人都会听到这首');
