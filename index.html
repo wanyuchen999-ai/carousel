@@ -1247,10 +1247,22 @@
             renderer.render(scene, camera);
         }
 
+        // 按屏幕比例自动取景：竖屏拉远保证木马完整，横屏拉近撑满
+        function fitCamera() {
+            var aspect = window.innerWidth / window.innerHeight;
+            var vHalf = (45 / 2) * Math.PI / 180;
+            var hHalf = Math.atan(Math.tan(vHalf) * aspect);
+            var dist = THREE.MathUtils.clamp(16.5 / Math.tan(hHalf), 34, 130);
+            camera.position.set(0, 8 + 9 * (dist / 47), dist);
+            camera.lookAt(0, 8, 0);
+        }
+        fitCamera();
+
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            fitCamera();
         });
 
         boot().then(animate).catch(err => {
