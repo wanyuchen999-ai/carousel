@@ -313,6 +313,136 @@
             geo.setIndex(new THREE.BufferAttribute(idx, 1));
             return geo;
         }
+        // 兼容别名：条纹/花边纹理（与 makeStripeTexture/makeValanceTexture 同功能）
+        function stripeTexture(c1, c2, stripes, w, h) { return makeStripeTexture(c1, c2, stripes, w, h); }
+        function valanceTexture() { return makeValanceTexture(); }
+
+        /* ==================== 游乐园环境（草地/步道/围栏/路灯/树） ==================== */
+        function xformGeo(geo, x, y, z, rx, ry, rz) {
+            const m = new THREE.Matrix4();
+            const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0));
+            m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1));
+            geo.applyMatrix4(m);
+            return geo;
+        }
+        function buildPark() {
+            const park = new THREE.Group();
+            const grass = new THREE.Mesh(new THREE.CircleGeometry(30, 48),
+                new THREE.MeshStandardMaterial({ color: 0x141433, roughness: 0.9 }));
+            grass.rotation.x = -Math.PI / 2; grass.position.y = -0.06;
+            park.add(grass);
+            const path = new THREE.Mesh(new THREE.RingGeometry(17.5, 21, 48),
+                new THREE.MeshStandardMaterial({ color: 0x6e5a35, roughness: 0.85 }));
+            path.rotation.x = -Math.PI / 2; path.position.y = 0.02;
+            park.add(path);
+            const pad1 = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 0.12, 24),
+                new THREE.MeshStandardMaterial({ color: 0xf0e6d2, roughness: 0.8 }));
+            pad1.position.set(13, 0.06, 24); park.add(pad1);
+            const pad2 = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.2, 0.12, 24),
+                new THREE.MeshStandardMaterial({ color: 0xf0e6d2, roughness: 0.8 }));
+            pad2.position.set(-20, 0.06, -14); park.add(pad2);
+            const postMat = new THREE.MeshStandardMaterial({ color: 0xf6f1e7, roughness: 0.6 });
+            const POSTS = 40;
+            const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.11, 1.1, 6), postMat, POSTS);
+            const m4 = new THREE.Matrix4();
+            for (let i = 0; i < POSTS; i++) {
+                const a = (i / POSTS) * Math.PI * 2;
+                m4.setPosition(Math.cos(a) * 27.2, 0.55, Math.sin(a) * 27.2);
+                posts.setMatrixAt(i, m4);
+            }
+            park.add(posts);
+            park.add(new THREE.Mesh(mergeGeoms([
+                xformGeo(new THREE.TorusGeometry(27.2, 0.06, 6, 64), 0, 0.9, 0, Math.PI / 2),
+                xformGeo(new THREE.TorusGeometry(27.2, 0.06, 6, 64), 0, 0.45, 0, Math.PI / 2)
+            ]), postMat));
+            const lampPostMat = new THREE.MeshStandardMaterial({ color: 0x3a3550, roughness: 0.5 });
+            const lampBulbMat = new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffcc66, emissiveIntensity: 1.6, roughness: 0.4 });
+            const lampPosts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.1, 3.2, 6), lampPostMat, 4);
+            const lampBulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 10, 8), lampBulbMat, 4);
+            for (let i = 0; i < 4; i++) {
+                const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                m4.setPosition(Math.cos(a) * 22.5, 1.6, Math.sin(a) * 22.5);
+                lampPosts.setMatrixAt(i, m4);
+                m4.setPosition(Math.cos(a) * 22.5, 3.3, Math.sin(a) * 22.5);
+                lampBulbs.setMatrixAt(i, m4);
+            }
+            park.add(lampPosts, lampBulbs);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 0.7 });
+            const crownMat = new THREE.MeshStandardMaterial({ color: 0x1f4752, roughness: 0.8 });
+            const TREES = 8;
+            const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.14, 0.2, 1.2, 6), trunkMat, TREES);
+            const crowns1 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.15, 1.7, 8), crownMat, TREES);
+            const crowns2 = new THREE.InstancedMesh(new THREE.ConeGeometry(0.85, 1.4, 8), crownMat, TREES);
+            for (let i = 0; i < TREES; i++) {
+                const a = (i / TREES) * Math.PI * 2 + 0.35;
+                const x = Math.cos(a) * 25.5, z = Math.sin(a) * 25.5;
+                const sway = (Math.random() - 0.5) * 0.24;   // 随机倾斜 → 梦幻造型树
+                const scale = 0.85 + Math.random() * 0.5;
+                const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.random() * Math.PI, sway));
+                m4.compose(new THREE.Vector3(x, 0.6 * scale, z), q, new THREE.Vector3(scale, scale, scale));
+                trunks.setMatrixAt(i, m4);
+                m4.compose(new THREE.Vector3(x, 1.9 * scale, z), q, new THREE.Vector3(scale, scale, scale));
+                crowns1.setMatrixAt(i, m4);
+                m4.compose(new THREE.Vector3(x, 2.9 * scale, z), q, new THREE.Vector3(scale, scale, scale));
+                crowns2.setMatrixAt(i, m4);
+            }
+            park.add(trunks, crowns1, crowns2);
+            // 发光小蘑菇 ×10（梦幻夜景点缀）
+            const mushStemMat = new THREE.MeshStandardMaterial({ color: 0xd8cfc0, roughness: 0.6 });
+            const MUSH = 10;
+            const mushStems = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.13, 0.7, 6), mushStemMat, MUSH);
+            const mushCaps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.42, 10, 8),
+                new THREE.MeshStandardMaterial({ roughness: 0.4 }), MUSH);
+            const GLOW = [0xff7ab8, 0x7ae0ff, 0xffd0f0, 0x9fb8ff];
+            for (let i = 0; i < MUSH; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const r = 22 + Math.random() * 5;
+                const x = Math.cos(a) * r, z = Math.sin(a) * r;
+                const s = 0.7 + Math.random() * 0.9;
+                m4.compose(new THREE.Vector3(x, 0.35 * s, z), new THREE.Quaternion(), new THREE.Vector3(s, s, s));
+                mushStems.setMatrixAt(i, m4);
+                m4.compose(new THREE.Vector3(x, 0.72 * s, z), new THREE.Quaternion(), new THREE.Vector3(s, s, s));
+                mushCaps.setMatrixAt(i, m4);
+                mushCaps.setColorAt(i, new THREE.Color(GLOW[i % GLOW.length]));
+            }
+            mushCaps.instanceColor.needsUpdate = true;
+            park.add(mushStems, mushCaps);
+            scene.add(park);
+        }
+
+        /* ==================== 预留空位（未来项目） ==================== */
+        function buildReservedPad(x, z) {
+            const pad = new THREE.Group();
+            const cream = new THREE.MeshStandardMaterial({ color: 0xf0e6d2, roughness: 0.8 });
+            const wood = new THREE.MeshStandardMaterial({ color: 0xa8783c, roughness: 0.6 });
+            const platform = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.8, 0.14, 32), cream);
+            platform.position.y = 0.07;
+            pad.add(platform);
+            // 低矮护栏圈
+            const rail = new THREE.Mesh(new THREE.TorusGeometry(6.6, 0.08, 6, 48), wood);
+            rail.rotation.x = Math.PI / 2; rail.position.y = 0.55;
+            pad.add(rail);
+            // 立牌：预留区域
+            const sc = document.createElement('canvas'); sc.width = 512; sc.height = 256;
+            const scx = sc.getContext('2d');
+            scx.fillStyle = '#a8783c'; scx.fillRect(0, 0, 512, 256);
+            scx.strokeStyle = '#6e4c22'; scx.lineWidth = 14; scx.strokeRect(7, 7, 498, 242);
+            scx.fillStyle = '#3a2a14'; scx.font = '72px "KaiTi", "STKaiti", sans-serif';
+            scx.textAlign = 'center'; scx.textBaseline = 'middle';
+            scx.fillText('敬请期待', 256, 105);
+            scx.font = '34px sans-serif'; scx.fillStyle = '#5a4520';
+            scx.fillText('NEXT ATTRACTION', 256, 195);
+            const signTex = new THREE.CanvasTexture(sc); signTex.encoding = THREE.sRGBEncoding;
+            const board = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 2.3),
+                new THREE.MeshStandardMaterial({ map: signTex, side: THREE.DoubleSide, roughness: 0.6 }));
+            board.position.set(0, 4.1, 0);
+            pad.add(board);
+            const post1 = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 3.2, 8), wood);
+            post1.position.set(-1.9, 1.6, 0.05); pad.add(post1);
+            const post2 = post1.clone(); post2.position.x = 1.9; pad.add(post2);
+            pad.position.set(x, 0.02, z);
+            scene.add(pad);
+        }
 
         function buildGachaMachine() {
             gachaGroup = new THREE.Group();
@@ -380,11 +510,37 @@
             gachaKnob.position.set(0, 2.0, 1.56);
             gachaGroup.add(gachaKnob);
 
-            // 发光招牌
-            const sign = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 0.1),
-                new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0x664411, roughness: 0.4 }));
+            // 招牌：奶油底 + 手写"扭蛋"
+            const sc = document.createElement('canvas'); sc.width = 256; sc.height = 96;
+            const scx = sc.getContext('2d');
+            scx.fillStyle = '#f6f1e7'; scx.fillRect(0, 0, 256, 96);
+            scx.strokeStyle = '#b8302e'; scx.lineWidth = 8; scx.strokeRect(4, 4, 248, 88);
+            scx.fillStyle = '#b8302e'; scx.font = '52px "KaiTi", "STKaiti", sans-serif';
+            scx.textAlign = 'center'; scx.textBaseline = 'middle';
+            scx.fillText('扭 蛋', 128, 52);
+            const signTex = new THREE.CanvasTexture(sc); signTex.encoding = THREE.sRGBEncoding;
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 0.1),
+                new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.5 }));
             sign.position.set(0, 4.95, 0.9);
             gachaGroup.add(sign);
+
+            // 摊位遮阳棚（条纹）+ 四根柱 + 柜台
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.6, roughness: 0.35 });
+            const poleParts = [];
+            for (const px of [-1.35, 1.35]) for (const pz of [-1.0, 1.0]) {
+                poleParts.push(xformGeo(new THREE.CylinderGeometry(0.06, 0.06, 3.4, 6), px, 3.9, pz));
+            }
+            gachaGroup.add(new THREE.Mesh(mergeGeoms(poleParts), poleMat));
+            const canopy = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.14, 2.9),
+                new THREE.MeshStandardMaterial({ map: stripeTexture('#b8302e', '#f5ead0', 10, 256, 64), roughness: 0.55 }));
+            canopy.position.set(0, 5.65, 0.05); canopy.rotation.z = 0.02;
+            gachaGroup.add(canopy);
+            const counter = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.75, 0.5), white);
+            counter.position.set(0, 0.42, 1.85);
+            gachaGroup.add(counter);
+            const counterTop = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.1, 0.62), red);
+            counterTop.position.set(0, 0.84, 1.85);
+            gachaGroup.add(counterTop);
 
             // 放在木马右前方，正面朝向镜头
             gachaGroup.position.set(13, 0, 24);
@@ -813,7 +969,10 @@
             setStatus('正在加载八音盒…', true);
             const model = await loadCarouselModel();
             carouselDims = model ? normalizeModel(model) : buildProceduralCarousel();
-            buildGachaMachine();
+            buildPark();               // 游乐园地面/围栏/路灯/树
+            buildGachaMachine();       // 设施一：扭蛋机摊位
+            buildReservedPad(-20, -14);   // 预留空位（未来项目）
+            buildReservedPad(18, -20);    // 预留空位（未来项目）
             buildAnchors(carouselDims);
             document.getElementById('loading').classList.add('hide');
 
@@ -1503,7 +1662,7 @@
             var aspect = window.innerWidth / window.innerHeight;
             var vHalf = (45 / 2) * Math.PI / 180;
             var hHalf = Math.atan(Math.tan(vHalf) * aspect);
-            var dist = THREE.MathUtils.clamp(19 / Math.tan(hHalf), 40, 130);
+            var dist = THREE.MathUtils.clamp(28 / Math.tan(hHalf), 40, 140);
             camera.position.set(0, 8 + 9 * (dist / 47), dist);
             camera.lookAt(0, 8, 0);
         }
