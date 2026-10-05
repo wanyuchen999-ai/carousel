@@ -1,0 +1,176 @@
+        body { margin: 0; overflow: hidden; background-color: #050510; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
+        canvas { display: block; }
+        #light-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 230, 150, 0.12) 0%, transparent 60%);
+            transition: background 0.1s ease;
+        }
+
+        /* ---------- HUD 界面 ---------- */
+        .hud { position: fixed; z-index: 20; color: #fff; }
+        #title-card {
+            top: 18px; left: 20px; pointer-events: none;
+            background: rgba(20, 18, 40, 0.55); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 220, 160, 0.25); border-radius: 14px;
+            padding: 12px 18px;
+        }
+        #title-card h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 1px; color: #ffe9c4; }
+        #mode-line { margin-top: 4px; font-size: 12px; color: #b9b3d6; }
+
+        #status-chip {
+            top: 18px; right: 20px; pointer-events: none;
+            font-size: 12px; color: #d8ffe0;
+            background: rgba(20, 45, 30, 0.5); border: 1px solid rgba(120, 255, 160, 0.25);
+            border-radius: 999px; padding: 6px 14px; backdrop-filter: blur(10px);
+        }
+        #status-chip.off { color: #ffd9a8; background: rgba(50, 35, 15, 0.5); border-color: rgba(255, 200, 120, 0.3); }
+
+        #hint {
+            bottom: 76px; left: 50%; transform: translateX(-50%);
+            pointer-events: none; font-size: 12px; color: #9a94bd;
+            background: rgba(20, 18, 40, 0.45); backdrop-filter: blur(8px);
+            padding: 6px 16px; border-radius: 999px; white-space: nowrap;
+            transition: opacity 1s;
+        }
+
+        #controls {
+            bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px;
+        }
+        #controls button {
+            display: none; align-items: center; gap: 6px;
+            background: rgba(30, 26, 58, 0.72); color: #ffe9c4;
+            border: 1px solid rgba(255, 220, 160, 0.35); border-radius: 999px;
+            padding: 10px 18px; font-size: 14px; cursor: pointer;
+            backdrop-filter: blur(10px); transition: all 0.2s;
+        }
+        #controls button:hover { background: rgba(70, 55, 110, 0.85); transform: translateY(-2px); }
+        #controls button.show { display: inline-flex; }
+
+        #confirm-chip {
+            display: none; bottom: 76px; left: 50%; transform: translateX(-50%);
+            position: fixed; z-index: 25;
+            background: rgba(60, 20, 25, 0.85); border: 1px solid rgba(255, 120, 120, 0.4);
+            color: #ffd9d9; padding: 10px 16px; border-radius: 12px; font-size: 13px;
+            backdrop-filter: blur(10px); align-items: center; gap: 10px; white-space: nowrap;
+        }
+        #confirm-chip.show { display: inline-flex; }
+        #confirm-chip button { border: none; border-radius: 8px; padding: 5px 12px; cursor: pointer; font-size: 12px; }
+        #confirm-yes { background: #e05555; color: #fff; }
+        #confirm-no { background: rgba(255,255,255,0.15); color: #eee; }
+
+        #toast {
+            position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-16px);
+            background: rgba(30, 26, 58, 0.9); color: #ffe9c4; border: 1px solid rgba(255, 220, 160, 0.3);
+            padding: 10px 20px; border-radius: 12px; font-size: 13px;
+            opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 30;
+            max-width: 80vw; text-align: center;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        #loading {
+            position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+            background: #050510; color: #ffe9c4; font-size: 14px; letter-spacing: 2px;
+            transition: opacity 0.8s;
+        }
+        #loading.hide { opacity: 0; visibility: hidden; transition: opacity 0.8s, visibility 0s 0.8s; pointer-events: none; }
+        #loading .ball { font-size: 40px; animation: spin 2.4s linear infinite; display: inline-block; }
+        @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+        #credit { bottom: 8px; right: 12px; font-size: 10px; color: #55506e; pointer-events: none; }
+
+        /* ---------- 扭蛋纸条弹层 ---------- */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0; z-index: 50;
+            background: rgba(5, 5, 16, 0.82);
+            align-items: center; justify-content: center;
+            flex-direction: column;
+        }
+        .modal-overlay.show { display: flex; }
+        .note-modal-box {
+            background: rgba(30, 26, 58, 0.95);
+            border: 1px solid rgba(255, 220, 160, 0.35);
+            border-radius: 16px;
+            padding: 22px;
+            width: min(92vw, 420px);
+            color: #ffe9c4;
+        }
+        .note-title { font-size: 16px; margin-bottom: 16px; text-align: center; }
+        .note-opt {
+            display: block; width: 100%;
+            background: rgba(70, 55, 110, 0.7); color: #ffe9c4;
+            border: 1px solid rgba(255, 220, 160, 0.35);
+            border-radius: 12px; padding: 14px; font-size: 15px;
+            margin-bottom: 12px; cursor: pointer; text-align: center;
+        }
+        .note-cancel {
+            display: block; width: 100%;
+            background: rgba(255,255,255,0.08); color: #ccc;
+            border: none; border-radius: 12px; padding: 10px;
+            cursor: pointer; text-align: center;
+        }
+        #note-text {
+            width: 100%; height: 110px;
+            background: rgba(20, 18, 40, 0.8); color: #ffe9c4;
+            border: 1px solid rgba(255, 220, 160, 0.35);
+            border-radius: 12px; padding: 12px;
+            font-size: 14px; resize: none; outline: none;
+            font-family: "KaiTi", "STKaiti", cursive;
+        }
+        #note-preview {
+            display: block; margin: 12px auto; width: 240px;
+            border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+        }
+        .note-actions { display: flex; }
+        .note-actions button {
+            flex: 1; margin: 0 4px; padding: 10px;
+            border: 1px solid rgba(255, 220, 160, 0.35);
+            border-radius: 10px; cursor: pointer; font-size: 14px;
+        }
+        #note-save { background: #d4af37; color: #1a1408; font-weight: 600; }
+        #note-text-cancel { background: rgba(255,255,255,0.08); color: #ccc; }
+        #egg-paper {
+            max-width: 86vw; max-height: 68vh;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(255, 220, 160, 0.15);
+        }
+        #egg-close {
+            position: absolute; top: 4vh; right: 6vw;
+            background: rgba(255,255,255,0.12); color: #fff;
+            border: none; border-radius: 50%;
+            width: 40px; height: 40px; font-size: 16px; cursor: pointer;
+        }
+        #egg-actions { margin-top: 16px; display: flex; }
+        #egg-actions button {
+            margin: 0 6px; padding: 10px 18px;
+            background: rgba(70, 55, 110, 0.85); color: #ffe9c4;
+            border: 1px solid rgba(255, 220, 160, 0.35);
+            border-radius: 10px; cursor: pointer; font-size: 14px;
+        }
+        #egg-delete { background: rgba(120, 40, 40, 0.7) !important; display: none; }
+        #egg-delete.show { display: block; }
+
+        /* 手机窄屏适配 */
+        #controls { flex-wrap: wrap; max-width: 94vw; justify-content: center; }
+        #hint { white-space: normal; width: min(92vw, 560px); text-align: center; }
+
+        /* 相册编号输入（链接被聊天软件截断时的备用入口） */
+        #code-entry {
+            position: fixed; top: 88px; left: 20px; z-index: 20;
+            display: none; gap: 6px; align-items: center;
+        }
+        #code-entry.show { display: flex; }
+        #album-code {
+            background: rgba(20, 18, 40, 0.75); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 220, 160, 0.35); border-radius: 999px;
+            color: #ffe9c4; padding: 8px 14px; font-size: 13px; width: 120px; outline: none;
+        }
+        #album-code::placeholder { color: #9a94bd; }
+        #btn-open-code {
+            background: rgba(70, 55, 110, 0.85); color: #ffe9c4;
+            border: 1px solid rgba(255, 220, 160, 0.35); border-radius: 999px;
+            padding: 8px 14px; font-size: 13px; cursor: pointer;
+        }
