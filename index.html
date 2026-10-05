@@ -249,12 +249,15 @@
     <input type="file" id="file-photo" accept="image/*" multiple hidden>
     <input type="file" id="file-music" accept="audio/*" hidden>
 
-    <script type="importmap">
-    { "imports": {
-        "three": "https://esm.sh/three@0.160.0",
-        "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
-    } }
-    </script>
+  <!-- Supabase 本地化打包：即使 esm.sh 不稳也能初始化云连接 -->
+  <script src="./assets/vendor/supabase.js"></script>
+
+  <script type="importmap">
+  { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  } }
+  </script>
 
     <script type="module">
         import * as THREE from 'three';
@@ -992,6 +995,10 @@
          * ============================================================ */
         async function initCloud() {
             if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+            // 优先使用本地打包的 UMD 版（随仓库分发，无 CDN 依赖）
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
             const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
             return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         }
