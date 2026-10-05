@@ -20,6 +20,19 @@ SKIP_FILES = {".DS_Store", "Thumbs.db", "_payload.json", "_check.mjs"}
 COMMIT_MSG = "更新网站文件"
 
 
+DEPLOY_STAMP = str(int(time.time()))
+
+
+def prepare_content(rel, content_bytes):
+    """上传 index.html 时给静态资源引用打上部署时间戳，破除 CDN/浏览器缓存"""
+    if rel == "index.html":
+        text = content_bytes.decode("utf-8")
+        text = text.replace("app.js?v=dev", f"app.js?v={DEPLOY_STAMP}")
+        text = text.replace("style.css?v=dev", f"style.css?v={DEPLOY_STAMP}")
+        return text.encode("utf-8")
+    return content_bytes
+
+
 def collect_files():
     """自动遍历目录收集全部网站文件（不再维护硬编码清单）"""
     found = []
@@ -82,7 +95,7 @@ ok = True
 for f in FILES:
     try:
         with open(f, "rb") as fh:
-            content = base64.b64encode(fh.read()).decode()
+            content = base64.b64encode(prepare_content(f, fh.read())).decode()
     except FileNotFoundError:
         print(f"- 跳过（不存在）：{f}")
         continue
