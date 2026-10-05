@@ -244,7 +244,12 @@
   <input type="file" id="file-note" accept="image/*" hidden />
     <div class="hud" id="credit">推荐模型: Christmas Carousel · SkyeSladeUT @ Sketchfab (CC-BY)</div>
 
-    <div id="loading"><span class="ball">🎠</span><span id="loading-text">八音盒启动中…</span></div>
+    <div id="loading"><span class="ball">🎠</span><span id="loading-text">八音盒启动中…</span>
+    <div id="file-hint" style="display:none; font-size:12px; color:#9a94bd; max-width:80vw; text-align:center; line-height:1.6;">
+      检测到你是直接双击打开的本地文件——浏览器安全策略会阻止它运行。<br />
+      请改用线上网址访问，或在文件夹里运行 <b>python -m http.server 8000</b> 后打开 localhost:8000（方法见 README）
+    </div>
+  </div>
 
     <input type="file" id="file-photo" accept="image/*" multiple hidden>
     <input type="file" id="file-music" accept="audio/*" hidden>
@@ -1781,6 +1786,10 @@
         boot().then(animate).catch(err => {
             console.error(err);
             document.getElementById('loading-text').textContent = '启动失败：' + err.message;
+            if (location.protocol === 'file:') {
+                document.getElementById('file-hint').style.display = 'block';
+            }
+            window.__bootError = err.message;
         });
 
         // 供自动化测试/调试用：控制台里可以用 window.__car.handlePhotoFiles([...]) 模拟上传
