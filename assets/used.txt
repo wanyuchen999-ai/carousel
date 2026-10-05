@@ -1,0 +1,6 @@
+makeNoteCanvas
+makePhotoTexture
+makePlaceholderTexture
+mergeGeoms
+stripeTexture
+xformGeo
