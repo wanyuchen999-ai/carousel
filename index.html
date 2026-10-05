@@ -541,6 +541,41 @@
         }
 
         /* ==================== 扭蛋机 ==================== */
+        // 几何合并（同材质多部件合一，降低 draw call）
+        function mergeGeoms(items) {
+            let posCount = 0, idxCount = 0;
+            for (const g of items) {
+                posCount += g.attributes.position.count;
+                idxCount += g.index ? g.index.count : g.attributes.position.count;
+            }
+            const pos = new Float32Array(posCount * 3);
+            const nor = new Float32Array(posCount * 3);
+            const uv = new Float32Array(posCount * 2);
+            const idx = new Uint32Array(idxCount);
+            let offset = 0, idxOffset = 0;
+            for (let i = 0; i < items.length; i++) {
+                const g = items[i];
+                const p = g.attributes.position, n = g.attributes.normal, u = g.attributes.uv;
+                pos.set(p.array, offset * 3);
+                if (n) nor.set(n.array, offset * 3);
+                if (u) uv.set(u.array, offset * 2);
+                if (g.index) {
+                    for (let j = 0; j < g.index.count; j++) idx[idxOffset + j] = g.index.array[j] + offset;
+                    idxOffset += g.index.count;
+                } else {
+                    for (let j = 0; j < p.count; j++) idx[idxOffset + j] = offset + j;
+                    idxOffset += p.count;
+                }
+                offset += p.count;
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+            geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+            geo.setIndex(new THREE.BufferAttribute(idx, 1));
+            return geo;
+        }
+
         function buildGachaMachine() {
             gachaGroup = new THREE.Group();
             const gold = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.75, roughness: 0.3 });
