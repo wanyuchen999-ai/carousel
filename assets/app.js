@@ -278,6 +278,43 @@
             return { radius: 13.5, topY: 19.8 };  // 供挂钩定位：y=15.84（垂幕下沿）、r=12.42（檐内）
         }
 
+        /* ==================== 游乐园大门 ==================== */
+        function buildGate() {
+            const gate = new THREE.Group();
+            const redMat = new THREE.MeshStandardMaterial({ color: 0xb8302e, roughness: 0.4 });
+            const creamMat = new THREE.MeshStandardMaterial({ color: 0xf6f1e7, roughness: 0.5 });
+            const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.75, roughness: 0.3 });
+            const left = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 7, 14), redMat);
+            left.position.set(-4.2, 3.5, 0);
+            const right = left.clone(); right.position.x = 4.2;
+            const top = new THREE.Mesh(new THREE.BoxGeometry(10.4, 1.1, 1.0), creamMat);
+            top.position.set(0, 7.2, 0);
+            const roofL = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.2, 10), goldMat);
+            roofL.position.set(-4.2, 8.2, 0);
+            const roofR = roofL.clone(); roofR.position.x = 4.2;
+            const sc = document.createElement('canvas'); sc.width = 512; sc.height = 128;
+            const sx = sc.getContext('2d');
+            sx.fillStyle = '#141433'; sx.fillRect(0, 0, 512, 128);
+            sx.strokeStyle = '#d4af37'; sx.lineWidth = 10; sx.strokeRect(5, 5, 502, 118);
+            sx.fillStyle = '#ffe9b0'; sx.font = '72px "KaiTi", "STKaiti", sans-serif';
+            sx.textAlign = 'center'; sx.textBaseline = 'middle';
+            sx.fillText('梦幻游乐园', 256, 68);
+            const signTex = new THREE.CanvasTexture(sc);
+            const sign = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 2.3),
+                new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, toneMapped: false }));
+            sign.position.set(0, 7.2, 0.56);
+            const walk = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.06, 22),
+                new THREE.MeshStandardMaterial({ color: 0x6e5a35, roughness: 0.85 }));
+            walk.position.set(0, 0.02, 41);
+            const lampL = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8),
+                new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffcc66, emissiveIntensity: 1.5 }));
+            lampL.position.set(-4.2, 6.2, 0);
+            const lampR = lampL.clone(); lampR.position.x = 4.2;
+            gate.add(left, right, top, roofL, roofR, sign, walk, lampL, lampR);
+            gate.position.set(0, 0, 30);
+            scene.add(gate);
+        }
+
         /* ==================== 扭蛋机 ==================== */
         // 几何合并（同材质多部件合一，降低 draw call）
         function mergeGeoms(items) {
@@ -848,11 +885,17 @@
         pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
         pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
-        // 点到扭蛋机 → 扭一张纸条
+        // 视图路由：全景点设施进入特写；特写视图内各归各位
         if (gachaGroup && raycaster.intersectObject(gachaGroup, true).length) {
-            twistGacha();
+            if (camMode === 'gacha') { twistGacha(); return; }
+            flyTo('gacha');
             return;
         }
+        if (camMode === 'overview') {
+            if (raycaster.intersectObject(carouselGroup, true).length) flyTo('carousel');
+            return;   // 点空地/天空无操作
+        }
+        if (camMode !== 'carousel') return;
         const hit = raycastPhotos();
         downInfo = { x: e.clientX, y: e.clientY, t: performance.now(), photo: hit ? hit.object.userData.photo : null };
         if (!downInfo.photo) { carouselDrag = true; prevX = e.clientX; }
@@ -970,6 +1013,7 @@
             const model = await loadCarouselModel();
             carouselDims = model ? normalizeModel(model) : buildProceduralCarousel();
             buildPark();               // 游乐园地面/围栏/路灯/树
+            buildGate();               // 游乐园大门
             buildGachaMachine();       // 设施一：扭蛋机摊位
             buildReservedPad(-20, -14);   // 预留空位（未来项目）
             buildReservedPad(18, -20);    // 预留空位（未来项目）
@@ -1398,8 +1442,9 @@
             const btnShare = document.getElementById('btn-share');
             const btnAlbum = document.getElementById('btn-album');
             const btnNote = document.getElementById('btn-note');
+            const btnOverview = document.getElementById('btn-overview');
             const modeLine = document.getElementById('mode-line');
-            [btnUpload, btnMusic, btnShare, btnAlbum, btnNote].forEach(b => b.classList.remove('show'));
+            [btnUpload, btnMusic, btnShare, btnAlbum, btnNote, btnOverview].forEach(b => b.classList.remove('show'));
 
             if (!cloud) {
                 setStatus('本地演示模式（未配置 Supabase）', true);
@@ -1422,6 +1467,14 @@
                 setStatus('访客模式 · 只能看');
                 modeLine.textContent = `朋友的专属相册（编号 ${albumId}）· 尽情推木马、拨照片吧`;
                 document.getElementById('code-entry').classList.remove('show');
+            }
+            // 视图文案与返回按钮
+            if (camMode === 'overview') {
+                modeLine.textContent = mode === 'album'
+                    ? `你的专属游乐园（编号 ${albumId}）· 点击旋转木马或扭蛋机进入`
+                    : '游乐园全景 · 点击旋转木马或扭蛋机进入';
+            } else {
+                btnOverview.classList.add('show');
             }
         }
 
@@ -1657,22 +1710,45 @@
             renderer.render(scene, camera);
         }
 
-        // 按屏幕比例自动取景：竖屏拉远保证木马完整，横屏拉近撑满（含扭蛋机）
-        function fitCamera() {
-            var aspect = window.innerWidth / window.innerHeight;
-            var vHalf = (45 / 2) * Math.PI / 180;
-            var hHalf = Math.atan(Math.tan(vHalf) * aspect);
-            var dist = THREE.MathUtils.clamp(28 / Math.tan(hHalf), 40, 140);
-            camera.position.set(0, 8 + 9 * (dist / 47), dist);
-            camera.lookAt(0, 8, 0);
+        // 相机视图系统：全景（大门+全园）/ 旋转木马特写 / 扭蛋机特写
+        let camMode = 'overview';
+        let camTween = null;
+        const camLook = new THREE.Vector3(0, 8, 0);
+        function halfTan(aspect) { return Math.tan((45 / 2) * Math.PI / 180) * aspect; }
+        function viewFor(name) {
+            const ht = halfTan(window.innerWidth / window.innerHeight);
+            if (name === 'overview') {
+                const d = THREE.MathUtils.clamp(34 / ht, 85, 170);
+                return { pos: new THREE.Vector3(0, 0.42 * d, 0.85 * d), look: new THREE.Vector3(0, 3, 6) };
+            }
+            if (name === 'gacha') {
+                const d = THREE.MathUtils.clamp(9 / ht, 26, 80);
+                return { pos: new THREE.Vector3(13, 5.6, 24 + d), look: new THREE.Vector3(13, 2.3, 24) };
+            }
+            const d = THREE.MathUtils.clamp(19 / ht, 40, 130);
+            return { pos: new THREE.Vector3(0, 8 + 9 * (d / 47), d), look: new THREE.Vector3(0, 8, 0) };
         }
-        fitCamera();
-
+        function snapView() {
+            const v = viewFor(camMode);
+            camera.position.copy(v.pos);
+            camLook.copy(v.look);
+            camera.lookAt(camLook);
+        }
+        function flyTo(name, dur = 1.8) {
+            const v = viewFor(name);
+            camTween = {
+                fromP: camera.position.clone(), toP: v.pos,
+                fromL: camLook.clone(), toL: v.look,
+                t0: clock.getElapsedTime(), dur
+            };
+            camMode = name;
+            refreshUI();
+        }
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            fitCamera();
+            if (!camTween) snapView();
         });
 
         boot().then(animate).catch(err => {
