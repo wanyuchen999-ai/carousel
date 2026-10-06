@@ -1531,7 +1531,12 @@
             await ensureAlbum();
             const { data: newId, error } = await withRetry(() =>
                 cloud.rpc('add_note', { p_album: albumId, p_owner: visitorId, p_kind: 'text', p_content: content, p_url: null, p_path: null }));
-            if (error) { toast('纸条保存失败：' + error.message); return; }
+            if (error) {
+                toast(/add_note|notes|schema/i.test(error.message)
+                    ? '纸条功能需要先在 Supabase 跑一遍 upgrade-notes.sql（步骤见 README）'
+                    : '纸条保存失败：' + error.message);
+                return;
+            }
             notes.push({ id: Number(newId), kind: 'text', content, url: null, uploader_id: visitorId });
             shuffleBag();
             toast('🍬 纸条已放进扭蛋机');
@@ -1547,7 +1552,12 @@
             const url = cloud.storage.from('media').getPublicUrl(path).data.publicUrl;
             const { data: newId, error } = await withRetry(() =>
                 cloud.rpc('add_note', { p_album: albumId, p_owner: visitorId, p_kind: 'image', p_content: null, p_url: url, p_path: path }));
-            if (error) { toast('纸条保存失败：' + error.message); return; }
+            if (error) {
+                toast(/add_note|notes|schema/i.test(error.message)
+                    ? '纸条功能需要先在 Supabase 跑一遍 upgrade-notes.sql（步骤见 README）'
+                    : '纸条保存失败：' + error.message);
+                return;
+            }
             notes.push({ id: Number(newId), kind: 'image', content: null, url, uploader_id: visitorId });
             shuffleBag();
             toast('🍬 照片纸条已放进扭蛋机');
