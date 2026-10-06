@@ -1,3 +1,12 @@
+/* 手写字体：马善政毛笔楷书（OFL 免费商用，随仓库分发） */
+@font-face {
+  font-family: 'Ma Shan Zheng';
+  src: url('./fonts/mashanzheng.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
         body { margin: 0; overflow: hidden; background-color: #050510; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
         canvas { display: block; }
         #light-overlay {
