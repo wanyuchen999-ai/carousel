@@ -278,6 +278,15 @@
             return { radius: 13.5, topY: 19.8 };  // 供挂钩定位：y=15.84（垂幕下沿）、r=12.42（檐内）
         }
 
+        // 手写字体就绪（Ma Shan Zheng，OFL 免费商用，随仓库分发）
+        const HAND_FONT = '"Ma Shan Zheng", "KaiTi", "STKaiti", cursive';
+        const fontReady = (document.fonts && document.fonts.load)
+            ? Promise.all([
+                document.fonts.load('90px "Ma Shan Zheng"', '梦幻游乐园扭蛋屋'),
+                document.fonts.load('46px "Ma Shan Zheng"', '写一句话给未来')
+              ]).catch(() => {})
+            : Promise.resolve();
+
         /* ==================== 游乐园大门 ==================== */
         function buildGate() {
             const gate = new THREE.Group();
@@ -292,17 +301,43 @@
             const roofL = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.2, 10), goldMat);
             roofL.position.set(-4.2, 8.2, 0);
             const roofR = roofL.clone(); roofR.position.x = 4.2;
-            const sc = document.createElement('canvas'); sc.width = 512; sc.height = 128;
-            const sx = sc.getContext('2d');
-            sx.fillStyle = '#141433'; sx.fillRect(0, 0, 512, 128);
-            sx.strokeStyle = '#d4af37'; sx.lineWidth = 10; sx.strokeRect(5, 5, 502, 118);
-            sx.fillStyle = '#ffe9b0'; sx.font = '72px "KaiTi", "STKaiti", sans-serif';
-            sx.textAlign = 'center'; sx.textBaseline = 'middle';
-            sx.fillText('梦幻游乐园', 256, 68);
-            const signTex = new THREE.CanvasTexture(sc);
-            const sign = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 2.3),
+            // 牌匾：深色木板 + 金色手写艺术字（字体加载后重绘）
+            const bsc = document.createElement('canvas'); bsc.width = 1024; bsc.height = 256;
+            const drawBoard = () => {
+                const bx = bsc.getContext('2d');
+                const g = bx.createLinearGradient(0, 0, 0, 256);
+                g.addColorStop(0, '#241533'); g.addColorStop(1, '#120a1e');
+                bx.fillStyle = g; bx.fillRect(0, 0, 1024, 256);
+                bx.strokeStyle = '#d4af37'; bx.lineWidth = 10; bx.strokeRect(14, 14, 996, 228);
+                bx.strokeStyle = 'rgba(212,175,55,0.5)'; bx.lineWidth = 3; bx.strokeRect(30, 30, 964, 196);
+                bx.fillStyle = '#d4af37';
+                for (const pt of [[30, 30], [994, 30], [30, 226], [994, 226]]) {
+                    bx.beginPath(); bx.arc(pt[0], pt[1], 9, 0, Math.PI * 2); bx.fill();
+                }
+                bx.fillStyle = '#ffe9b0';
+                bx.shadowColor = 'rgba(255,200,100,0.55)'; bx.shadowBlur = 26;
+                bx.font = '150px "Ma Shan Zheng", "KaiTi", cursive';
+                bx.textAlign = 'center'; bx.textBaseline = 'middle';
+                bx.fillText('梦幻游乐园', 512, 140);
+                bx.shadowBlur = 0;
+                bx.fillStyle = 'rgba(255,233,176,0.75)';
+                bx.font = '26px sans-serif';
+                bx.fillText('· D R E A M · P A R K ·', 512, 226);
+            };
+            drawBoard();
+            fontReady.then(() => { drawBoard(); signTex.needsUpdate = true; });
+            const signTex = new THREE.CanvasTexture(bsc);
+            const sign = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 2.9),
                 new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, toneMapped: false }));
-            sign.position.set(0, 7.2, 0.56);
+            sign.position.set(0, 7.3, 0.6);
+            const boardBack = new THREE.Mesh(new THREE.BoxGeometry(12.2, 3.2, 0.16),
+                new THREE.MeshStandardMaterial({ color: 0x1a1030, roughness: 0.6 }));
+            boardBack.position.set(0, 7.3, 0.5);
+            const lanternMat = new THREE.MeshStandardMaterial({ color: 0xd84545, roughness: 0.4, emissive: 0x882020, emissiveIntensity: 0.6 });
+            const lanterns = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 10, 8), lanternMat, 6);
+            const lm4 = new THREE.Matrix4();
+            for (let i = 0; i < 6; i++) lm4.setPosition(-4.4 + i * 1.76, 6.1, 0.8), lanterns.setMatrixAt(i, lm4);
+            gate.add(lanterns);
             const walk = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.06, 22),
                 new THREE.MeshStandardMaterial({ color: 0x6e5a35, roughness: 0.85 }));
             walk.position.set(0, 0.02, 41);
@@ -310,7 +345,7 @@
                 new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffcc66, emissiveIntensity: 1.5 }));
             lampL.position.set(-4.2, 6.2, 0);
             const lampR = lampL.clone(); lampR.position.x = 4.2;
-            gate.add(left, right, top, roofL, roofR, sign, walk, lampL, lampR);
+            gate.add(left, right, top, roofL, roofR, sign, boardBack, walk, lampL, lampR, lanterns);
             gate.position.set(0, 0, 30);
             scene.add(gate);
         }
@@ -483,6 +518,7 @@
 
         function buildGachaMachine() {
             gachaGroup = new THREE.Group();
+            const machine = new THREE.Group();      // 扭蛋机本体（放进店铺里）
             const gold = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.75, roughness: 0.3 });
             const red = new THREE.MeshStandardMaterial({ color: 0xb8302e, roughness: 0.4 });
             const white = new THREE.MeshStandardMaterial({ color: 0xf6f1e7, roughness: 0.5 });
@@ -493,24 +529,22 @@
                 geo.applyMatrix4(new THREE.Matrix4().setPosition(x, y, z));
                 bucket.push(geo);
             };
-            push(redParts, new THREE.CylinderGeometry(1.85, 2.05, 0.5, 24), 0, 0.25, 0);   // 底座
-            push(whiteParts, new THREE.CylinderGeometry(1.5, 1.65, 2.0, 24), 0, 1.5, 0);   // 机身
-            push(redParts, new THREE.CylinderGeometry(1.6, 1.5, 0.18, 24), 0, 2.58, 0);    // 托盘
-            push(redParts, new THREE.ConeGeometry(0.9, 0.7, 16), 0, 4.75, 0);              // 顶盖
-            push(redParts, new THREE.SphereGeometry(0.28, 12, 8), 0, 5.2, 0);              // 顶球
-            gachaGroup.add(new THREE.Mesh(mergeGeoms(redParts), red));
-            gachaGroup.add(new THREE.Mesh(mergeGeoms(whiteParts), white));
+            push(redParts, new THREE.CylinderGeometry(1.85, 2.05, 0.5, 24), 0, 0.25, 0);
+            push(whiteParts, new THREE.CylinderGeometry(1.5, 1.65, 2.0, 24), 0, 1.5, 0);
+            push(redParts, new THREE.CylinderGeometry(1.6, 1.5, 0.18, 24), 0, 2.58, 0);
+            push(redParts, new THREE.ConeGeometry(0.9, 0.7, 16), 0, 4.75, 0);
+            push(redParts, new THREE.SphereGeometry(0.28, 12, 8), 0, 5.2, 0);
+            machine.add(new THREE.Mesh(mergeGeoms(redParts), red));
+            machine.add(new THREE.Mesh(mergeGeoms(whiteParts), white));
 
-            // 玻璃球罩
             const dome = new THREE.Mesh(
                 new THREE.SphereGeometry(1.5, 24, 18),
                 new THREE.MeshStandardMaterial({ color: 0xbfd8ff, transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide })
             );
             dome.scale.y = 0.92;
             dome.position.y = 3.35;
-            gachaGroup.add(dome);
+            machine.add(dome);
 
-            // 罐内彩蛋（InstancedMesh，1 个 draw call）
             gachaBalls = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 12, 10),
                 new THREE.MeshStandardMaterial({ roughness: 0.3 }), 14);
             const m4 = new THREE.Matrix4();
@@ -526,18 +560,16 @@
                 gachaBalls.setColorAt(i, new THREE.Color(CANDY_COLORS[i % CANDY_COLORS.length]));
                 ballAlive.push(true);
             }
-            gachaGroup.add(gachaBalls);
+            machine.add(gachaBalls);
 
-            // 出蛋口
             const chute = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.16, 20), dark);
             chute.rotation.x = Math.PI / 2;
             chute.position.set(0, 0.95, 1.52);
-            gachaGroup.add(chute);
+            machine.add(chute);
             const flap = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.62, 0.06), white);
             flap.position.set(0, 0.95, 1.62);
-            gachaGroup.add(flap);
+            machine.add(flap);
 
-            // 旋钮 + 把手
             gachaKnob = new THREE.Group();
             const knobBody = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 20), gold);
             knobBody.rotation.x = Math.PI / 2;
@@ -545,45 +577,89 @@
             handle.position.z = 0.18;
             gachaKnob.add(knobBody, handle);
             gachaKnob.position.set(0, 2.0, 1.56);
-            gachaGroup.add(gachaKnob);
+            machine.add(gachaKnob);
 
-            // 招牌：奶油底 + 手写"扭蛋"
-            const sc = document.createElement('canvas'); sc.width = 256; sc.height = 96;
-            const scx = sc.getContext('2d');
-            scx.fillStyle = '#f6f1e7'; scx.fillRect(0, 0, 256, 96);
-            scx.strokeStyle = '#b8302e'; scx.lineWidth = 8; scx.strokeRect(4, 4, 248, 88);
-            scx.fillStyle = '#b8302e'; scx.font = '52px "KaiTi", "STKaiti", sans-serif';
-            scx.textAlign = 'center'; scx.textBaseline = 'middle';
-            scx.fillText('扭 蛋', 128, 52);
-            const signTex = new THREE.CanvasTexture(sc); signTex.encoding = THREE.sRGBEncoding;
-            const sign = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 0.1),
-                new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.5 }));
-            sign.position.set(0, 4.95, 0.9);
-            gachaGroup.add(sign);
+            machine.position.set(0, 0.18, -1.1);
+            machine.scale.setScalar(1.12);
+            gachaGroup.add(machine);
 
-            // 摊位遮阳棚（条纹）+ 四根柱 + 柜台
-            const poleMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.6, roughness: 0.35 });
-            const poleParts = [];
-            for (const px of [-1.35, 1.35]) for (const pz of [-1.0, 1.0]) {
-                poleParts.push(xformGeo(new THREE.CylinderGeometry(0.06, 0.06, 3.4, 6), px, 3.9, pz));
+            // ===== 扭蛋屋（店铺门面） =====
+            const wood = new THREE.MeshStandardMaterial({ color: 0x7a4f28, roughness: 0.7 });
+            const woodDark = new THREE.MeshStandardMaterial({ color: 0x5a3a1c, roughness: 0.75 });
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.24, 6.6),
+                new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.85 }));
+            floor.position.y = 0.12;
+            gachaGroup.add(floor);
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(9.8, 5.8, 0.3), wood);
+            backWall.position.set(0, 2.9, -3.1);
+            gachaGroup.add(backWall);
+            const wallL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5.8, 6.6), wood);
+            wallL.position.set(-4.75, 2.9, 0);
+            gachaGroup.add(wallL);
+            const wallR = wallL.clone(); wallR.position.x = 4.75;
+            gachaGroup.add(wallR);
+            const stripesV = [];
+            for (let i = -3; i <= 3; i++) {
+                stripesV.push(xformGeo(new THREE.BoxGeometry(0.06, 5.6, 0.34), i * 1.35, 2.9, 0));
             }
-            gachaGroup.add(new THREE.Mesh(mergeGeoms(poleParts), poleMat));
-            const canopy = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.14, 2.9),
-                new THREE.MeshStandardMaterial({ map: stripeTexture('#b8302e', '#f5ead0', 10, 256, 64), roughness: 0.55 }));
-            canopy.position.set(0, 5.65, 0.05); canopy.rotation.z = 0.02;
-            gachaGroup.add(canopy);
-            const counter = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.75, 0.5), white);
-            counter.position.set(0, 0.42, 1.85);
+            gachaGroup.add(new THREE.Mesh(mergeGeoms(stripesV), woodDark));
+
+            // 遮阳棚（红白条纹，前倾）
+            const awning = new THREE.Mesh(new THREE.BoxGeometry(10.4, 0.18, 3.4),
+                new THREE.MeshStandardMaterial({ map: makeStripeTexture('#b8302e', '#f5ead0', 10, 512, 128), roughness: 0.55 }));
+            awning.position.set(0, 6.1, 1.1);
+            awning.rotation.x = 0.16;
+            gachaGroup.add(awning);
+            const awningFront = new THREE.Mesh(new THREE.BoxGeometry(10.4, 0.5, 0.12), red);
+            awningFront.position.set(0, 5.62, 2.72);
+            gachaGroup.add(awningFront);
+
+            // 招牌：扭蛋屋（手写字体，字体加载后重绘）
+            const ssc = document.createElement('canvas'); ssc.width = 512; ssc.height = 160;
+            const drawShopSign = () => {
+                const sx = ssc.getContext('2d');
+                sx.fillStyle = '#141433'; sx.fillRect(0, 0, 512, 160);
+                sx.strokeStyle = '#d4af37'; sx.lineWidth = 8; sx.strokeRect(6, 6, 500, 148);
+                sx.fillStyle = '#ffe9b0';
+                sx.shadowColor = 'rgba(255,200,100,0.5)'; sx.shadowBlur = 16;
+                sx.font = '96px "Ma Shan Zheng", "KaiTi", cursive';
+                sx.textAlign = 'center'; sx.textBaseline = 'middle';
+                sx.fillText('扭 蛋 屋', 256, 84);
+                sx.shadowBlur = 0;
+            };
+            drawShopSign();
+            fontReady.then(() => { drawShopSign(); shopSignTex.needsUpdate = true; });
+            const shopSignTex = new THREE.CanvasTexture(ssc);
+            shopSignTex.encoding = THREE.sRGBEncoding;
+            const shopSign = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.6),
+                new THREE.MeshBasicMaterial({ map: shopSignTex, side: THREE.DoubleSide, toneMapped: false }));
+            shopSign.position.set(0, 6.9, 1.3);
+            gachaGroup.add(shopSign);
+
+            // 檐下灯串
+            const bulbMat2 = new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffcc66, emissiveIntensity: 1.6, roughness: 0.4 });
+            const bulbs2 = new THREE.InstancedMesh(new THREE.SphereGeometry(0.14, 8, 6), bulbMat2, 12);
+            for (let i = 0; i < 12; i++) {
+                m4.setPosition(-4.5 + i * 0.82, 5.5, 2.6);
+                bulbs2.setMatrixAt(i, m4);
+            }
+            gachaGroup.add(bulbs2);
+
+            // 柜台
+            const counter = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.95, 0.8),
+                new THREE.MeshStandardMaterial({ color: 0x8a5a2e, roughness: 0.65 }));
+            counter.position.set(0, 0.6, 2.3);
             gachaGroup.add(counter);
-            const counterTop = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.1, 0.62), red);
-            counterTop.position.set(0, 0.84, 1.85);
+            const counterTop = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.12, 0.95), white);
+            counterTop.position.set(0, 1.13, 2.3);
             gachaGroup.add(counterTop);
 
-            // 放在木马右前方，正面朝向镜头
-            gachaGroup.position.set(13, 0, 24);
+            gachaGroup.scale.setScalar(1.15);
+            gachaGroup.position.set(13, 0.1, 24);
             gachaGroup.rotation.y = Math.atan2(0 - 13, 47 - 24);
             scene.add(gachaGroup);
         }
+
 
         async function loadCarouselModel() {
             const loader = new GLTFLoader();
@@ -1231,80 +1307,129 @@
             shuffleBag();
         }
 
-        // 日记纸渲染（640×840）：纸底 + 横线 + 和纸胶带 + 日期 + 内容（手写字 / 照片印纹）
+        // 牛皮纸纸条（做旧风）：撕边牛皮纸 + 手写体 + 胶带 + 日期
         function makeNoteCanvas(note) {
-            return new Promise((resolve) => {
-                const W = 640, H = 840;
+            return new Promise(async (resolve) => {
+                try { await fontReady; } catch (e) { /* 忽略 */ }
+                const W = 720, H = 920;
                 const c = document.createElement('canvas'); c.width = W; c.height = H;
                 const ctx = c.getContext('2d');
-                const grad = ctx.createLinearGradient(0, 0, 0, H);
-                grad.addColorStop(0, '#fdf9ee'); grad.addColorStop(1, '#f6efdd');
-                ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-                ctx.fillStyle = 'rgba(150,130,90,0.06)';
-                for (let i = 0; i < 400; i++) ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+                const px = 26, py = 26, pw = W - 52, ph = H - 52;
 
-                const finish = () => {
-                    const d = new Date();
-                    ctx.fillStyle = '#8b8577';
-                    ctx.font = '26px "KaiTi", "STKaiti", cursive';
-                    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-                    ctx.fillText(d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日', 64, 152);
-                    ctx.textAlign = 'right';
-                    ctx.fillText(note.nickname || '来自相册', W - 64, 152);
-                    resolve(c);
+                // ---- 做旧牛皮纸底（撕边 + 阴影） ----
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+                ctx.beginPath();
+                const jagX = (n) => Array.from({ length: n + 1 }, () => (Math.random() - 0.5) * 7);
+                const topJ = jagX(16), botJ = jagX(16);
+                ctx.moveTo(px + topJ[0], py);
+                for (let i = 0; i < 16; i++) ctx.lineTo(px + (pw / 16) * i, py + (i % 2 ? -3 : 3));
+                ctx.lineTo(px + pw + botJ[16], py);
+                for (let i = 0; i < 20; i++) ctx.lineTo(px + pw + (i % 2 ? 4 : -4), py + (ph / 20) * i);
+                ctx.lineTo(px + pw, py + ph);
+                for (let i = 16; i >= 0; i--) ctx.lineTo(px + (pw / 16) * i, py + ph + (i % 2 ? 3 : -3));
+                ctx.lineTo(px, py + ph);
+                for (let i = 20; i >= 0; i--) ctx.lineTo(px + (i % 2 ? 4 : -4), py + (ph / 20) * i);
+                ctx.closePath();
+                const kg = ctx.createLinearGradient(0, 0, W, H);
+                kg.addColorStop(0, '#c9a26a'); kg.addColorStop(0.5, '#bb9257'); kg.addColorStop(1, '#a8834e');
+                ctx.fillStyle = kg;
+                ctx.fill();
+                ctx.restore();
+
+                // ---- 牛皮纸纹理：噪点 + 纤维 + 污渍 + 折痕（裁剪在纸内） ----
+                ctx.save();
+                ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+                ctx.fillStyle = 'rgba(90,60,20,0.10)';
+                for (let i = 0; i < 500; i++) ctx.fillRect(Math.random() * W, Math.random() * H, 2.2, 2.2);
+                ctx.strokeStyle = 'rgba(255,230,180,0.07)';
+                for (let i = 0; i < 26; i++) {
+                    const fy = Math.random() * H;
+                    ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy + (Math.random() - 0.5) * 8); ctx.stroke();
+                }
+                for (let i = 0; i < 3; i++) {
+                    const sx2 = Math.random() * W, sy2 = Math.random() * H, r = 40 + Math.random() * 70;
+                    const sg = ctx.createRadialGradient(sx2, sy2, 0, sx2, sy2, r);
+                    sg.addColorStop(0, 'rgba(90,55,15,0.14)'); sg.addColorStop(1, 'rgba(90,55,15,0)');
+                    ctx.fillStyle = sg; ctx.fillRect(sx2 - r, sy2 - r, r * 2, r * 2);
+                }
+                ctx.strokeStyle = 'rgba(70,45,15,0.10)'; ctx.lineWidth = 3;
+                for (const fy of [H * 0.34, H * 0.66]) {
+                    ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(W, fy + 6); ctx.stroke();
+                }
+                ctx.restore();
+
+                // ---- 和纸胶带 ×2 ----
+                const tape = (tx2, ty2, rot, color) => {
+                    ctx.save();
+                    ctx.translate(tx2, ty2); ctx.rotate(rot);
+                    ctx.fillStyle = color;
+                    ctx.fillRect(-85, -22, 170, 44);
+                    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+                    ctx.fillRect(-85, -8, 170, 5);
+                    ctx.restore();
                 };
+                tape(px + 88, py + 12, -0.16, 'rgba(214,120,110,0.72)');
+                tape(px + pw - 88, py + 12, 0.14, 'rgba(160,190,220,0.6)');
+
+                // ---- 日期 + 昵称 ----
+                const d = new Date();
+                ctx.fillStyle = '#4a3421';
+                ctx.font = '34px "Ma Shan Zheng", "KaiTi", cursive';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+                ctx.fillText(d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日', px + 56, py + 96);
+                ctx.textAlign = 'right';
+                ctx.font = '30px "Ma Shan Zheng", "KaiTi", cursive';
+                ctx.fillStyle = 'rgba(74,52,33,0.85)';
+                ctx.fillText(note.nickname || '', px + pw - 50, py + ph - 40);
+
+                // ---- 内容 ----
+                const ink = '#43301a';
+                ctx.fillStyle = ink;
+                ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+                const lineH = 84, tx0 = px + 60, ty0 = py + 200;
 
                 if (note.kind === 'image' && note.url) {
-                    // 拍照/选图：照片印进纸面，再叠半透明日记横线
+                    // 照片：白色相框贴纸（微旋转 + 阴影）
                     const img = new Image();
                     img.crossOrigin = 'anonymous';
                     img.onload = () => {
-                        const ix = 60, iy = 185, iw = W - 120, ih = H - 320;
-                        const s = Math.min(img.width / iw, img.height / ih);
-                        const sw = iw / s, sh = ih / s;
                         ctx.save();
-                        ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
-                        ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, ix, iy, iw, ih);
-                        ctx.fillStyle = 'rgba(253,248,236,0.16)'; ctx.fillRect(ix, iy, iw, ih);
-                        ctx.strokeStyle = 'rgba(130,160,210,0.28)'; ctx.lineWidth = 2;
-                        for (let yy = iy + 76; yy < iy + ih; yy += 76) {
-                            ctx.beginPath(); ctx.moveTo(ix, yy); ctx.lineTo(ix + iw, yy); ctx.stroke();
-                        }
+                        ctx.translate(px + pw / 2, py + 430);
+                        ctx.rotate(-0.035);
+                        ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 8;
+                        ctx.fillStyle = '#f8f4ea';
+                        const fw = 460, fh = 420;
+                        ctx.fillRect(-fw / 2, -fh / 2, fw, fh);
+                        ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+                        const s = Math.min(img.width / (fw - 40), img.height / (fh - 70));
+                        const sw2 = (fw - 40) * s, sh2 = (fh - 70) * s;
+                        ctx.drawImage(img, (img.width - sw2) / 2, (img.height - sh2) / 2, sw2, sh2, -fw / 2 + 20, -fh / 2 + 20, fw - 40, fh - 70);
                         ctx.restore();
-                        ctx.strokeStyle = 'rgba(120,110,90,0.4)'; ctx.lineWidth = 2;
-                        ctx.strokeRect(ix, iy, iw, ih);
-                        finish();
+                        ctx.fillStyle = ink;
+                        ctx.font = '38px "Ma Shan Zheng", "KaiTi", cursive';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('（这张照片，也留在了扭蛋里）', px + pw / 2, py + ph - 96);
+                        resolve(c);
                     };
-                    img.onerror = () => finish();
+                    img.onerror = () => resolve(c);
                     img.src = note.url;
                 } else {
-                    // 打字：日记横线 + 和纸胶带 + 手写体自动换行
-                    ctx.strokeStyle = 'rgba(130,160,210,0.35)'; ctx.lineWidth = 2;
-                    for (let yy = 205; yy < H - 90; yy += 76) {
-                        ctx.beginPath(); ctx.moveTo(60, yy); ctx.lineTo(W - 60, yy); ctx.stroke();
-                    }
-                    ctx.save();
-                    ctx.translate(W / 2, 44); ctx.rotate(-0.03);
-                    ctx.fillStyle = 'rgba(214,120,110,0.8)'; ctx.fillRect(-110, -22, 220, 44);
-                    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-110, -6, 220, 3);
-                    ctx.restore();
-                    ctx.fillStyle = '#3a4a8a';
-                    ctx.font = '44px "KaiTi", "STKaiti", cursive';
-                    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+                    // 打字：手写体逐行
+                    ctx.font = '46px "Ma Shan Zheng", "KaiTi", cursive';
                     const text = note.content || '';
-                    const lineH = 76; let x = 64, y = 276, line = '';
+                    let x = tx0, y = ty0 + 60, line = '';
                     for (const ch of text) {
                         if (ch === '\n') { ctx.fillText(line, x, y); y += lineH; line = ''; continue; }
-                        if (ctx.measureText(line + ch).width > W - 128) {
+                        if (ctx.measureText(line + ch).width > pw - 120) {
                             ctx.fillText(line, x, y); y += lineH; line = ch;
                         } else line += ch;
                     }
                     if (line) ctx.fillText(line, x, y);
-                    finish();
+                    resolve(c);
                 }
             });
         }
-
         function showEggModal(note) {
             const modal = document.getElementById('egg-modal');
             const delBtn = document.getElementById('egg-delete');
@@ -1722,8 +1847,8 @@
                 return { pos: new THREE.Vector3(0, 0.42 * d, 0.85 * d), look: new THREE.Vector3(0, 3, 6) };
             }
             if (name === 'gacha') {
-                const d = THREE.MathUtils.clamp(9 / ht, 26, 80);
-                return { pos: new THREE.Vector3(13, 5.6, 24 + d), look: new THREE.Vector3(13, 2.3, 24) };
+                const d = THREE.MathUtils.clamp(11 / ht, 28, 85);
+                return { pos: new THREE.Vector3(13, 5.4, 24 + d), look: new THREE.Vector3(13, 2.8, 24) };
             }
             const d = THREE.MathUtils.clamp(19 / ht, 40, 130);
             return { pos: new THREE.Vector3(0, 8 + 9 * (d / 47), d), look: new THREE.Vector3(0, 8, 0) };
