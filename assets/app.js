@@ -720,33 +720,36 @@
             tree.position.set(-15, 0.14, 7);
             const barkMat = new THREE.MeshStandardMaterial({ color: 0x6b4f33, roughness: 0.85 });
             // 树干（上细下粗）
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 1.15, 9.5, 10), barkMat);
-            trunk.position.y = 4.75;
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.5, 13, 10), barkMat);
+            trunk.position.y = 6.5;
             tree.add(trunk);
             // 大枝 ×4（伸向木马方向为主）
             const branches = new THREE.Mesh(mergeGeoms([
-                xformGeo(new THREE.CylinderGeometry(0.2, 0.34, 5.2, 8), 2.4, 10.2, 1.6, 0, 0, -0.85),
-                xformGeo(new THREE.CylinderGeometry(0.18, 0.3, 4.6, 8), -1.2, 10.6, 2.0, 0.35, 0, 0.4),
-                xformGeo(new THREE.CylinderGeometry(0.18, 0.3, 4.4, 8), -2.6, 10.8, -1.6, -0.5, 0, -0.5),
-                xformGeo(new THREE.CylinderGeometry(0.16, 0.28, 4.0, 8), 0.4, 11.2, -2.4, -0.9, 0, 0.6)
+                xformGeo(new THREE.CylinderGeometry(0.24, 0.4, 6.4, 8), 3.0, 12.4, 2.0, 0, 0, -0.85),
+                xformGeo(new THREE.CylinderGeometry(0.22, 0.36, 5.6, 8), -1.5, 12.8, 2.4, 0.35, 0, 0.4),
+                xformGeo(new THREE.CylinderGeometry(0.22, 0.36, 5.4, 8), -3.2, 13.0, -2.0, -0.5, 0, -0.5),
+                xformGeo(new THREE.CylinderGeometry(0.2, 0.34, 5.0, 8), 0.5, 13.4, -3.0, -0.9, 0, 0.6)
             ]), barkMat);
             tree.add(branches);
             // 树冠：大量叶团（InstancedMesh，随季节变色）
-            treeFoliage = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6),
-                new THREE.MeshStandardMaterial({ roughness: 0.75 }), 220);
+            const leafBase = new THREE.SphereGeometry(1, 6, 4);
+            leafBase.scale(0.55, 0.09, 1);   // 压成一片扁平的叶子
+            treeFoliage = new THREE.InstancedMesh(leafBase,
+                new THREE.MeshStandardMaterial({ roughness: 0.7, side: THREE.DoubleSide }), 620);
             const m4 = new THREE.Matrix4();
             // 树冠中心偏向木马（覆盖其一半），椭球分布
-            const cx = 2.6, cy = 15.2, cz = -2.2;
+            const cx = 2.8, cy = 22.9, cz = -2.2;
             for (let i = 0; i < 220; i++) {
                 const a = Math.random() * Math.PI * 2;
                 const rr = Math.pow(Math.random(), 0.6);
                 const px = Math.cos(a) * rr * 9.6;
                 const pz = Math.sin(a) * rr * 9.6;
-                const py = (Math.random() - 0.42) * 8.6 * (1 - rr * 0.35);
+                const py = (Math.random() - 0.45) * 6.4 * (1 - rr * 0.35);
+                const s = 0.9 + Math.random() * 1.0;
                 m4.compose(
                     new THREE.Vector3(cx + px, cy + py, cz + pz),
                     new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, Math.random() * 3)),
-                    new THREE.Vector3(1.5 + Math.random() * 1.4, 1.3 + Math.random() * 1.2, 1.5 + Math.random() * 1.4)
+                    new THREE.Vector3(s, s, s)
                 );
                 treeFoliage.setMatrixAt(i, m4);
             }
