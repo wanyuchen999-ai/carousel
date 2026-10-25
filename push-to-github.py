@@ -15,7 +15,7 @@ import urllib.request
 
 OWNER, REPO = "wanyuchen999-ai", "carousel"
 BRANCH = "main"
-SKIP_DIRS = {".git", "node_modules"}
+SKIP_DIRS = {".git", "node_modules", "dist"}
 SKIP_PATHS = {"app.js", "assets/_patch2.py", "assets/_patch3.py", "assets/defined.txt", "assets/used.txt", "assets/_fix.py", "assets/_check.mjs"}
 SKIP_FILES = {".DS_Store", "Thumbs.db", "_payload.json", "_check.mjs"}
 COMMIT_MSG = "更新网站文件"
