@@ -730,26 +730,24 @@
             shadeBlob.position.set(-10.5, 2.82, 4.2);
             scene.add(shadeBlob);
         }
+        let bigTreeGroup = null;
+        const treeLeafMats = [];
         function buildBigTree() {
-            const tree = new THREE.Group();
-            tree.position.set(-15, 0.14, 7);
+            bigTreeGroup = new THREE.Group();
+            bigTreeGroup.position.set(-15, 0.14, 7);
             const barkMat = new THREE.MeshStandardMaterial({ color: 0x6b4f33, roughness: 0.85 });
-
-            // ---- 树干（高 19.5，上细下粗） ----
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.5, 19.5, 10), barkMat);
-            trunk.position.y = 9.85;
-            tree.add(trunk);
-
-            // ---- 主枝 ×6：从树干顶端自然伸出（粗细渐变、方向各异） ----
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.4, 19.5, 10), barkMat);
+            trunk.position.y = 9.75;
+            bigTreeGroup.add(trunk);
             const up = new THREE.Vector3(0, 1, 0);
             const top = new THREE.Vector3(0, 19.2, 0);
             const branchDefs = [
-                { to: new THREE.Vector3(5.4, 22.6, 2.4), r: 0.3 },
-                { to: new THREE.Vector3(-4.4, 22.8, 3.4), r: 0.28 },
-                { to: new THREE.Vector3(-5.6, 22.6, -3.2), r: 0.28 },
-                { to: new THREE.Vector3(1.4, 23.6, -4.6), r: 0.26 },
-                { to: new THREE.Vector3(-1.6, 24.2, 4.2), r: 0.26 },
-                { to: new THREE.Vector3(0.2, 25.4, 0.2), r: 0.22 }
+                { to: new THREE.Vector3(4.6, 21.6, 2.2), r: 0.26 },
+                { to: new THREE.Vector3(-3.8, 21.8, 3.0), r: 0.24 },
+                { to: new THREE.Vector3(-4.8, 21.6, -2.8), r: 0.24 },
+                { to: new THREE.Vector3(1.2, 22.4, -4.2), r: 0.22 },
+                { to: new THREE.Vector3(-1.4, 23.0, 3.8), r: 0.22 },
+                { to: new THREE.Vector3(0.2, 24.6, 0.2), r: 0.2 }
             ];
             const branchParts = [];
             for (const bd of branchDefs) {
@@ -762,51 +760,59 @@
                 g.translate(mid.x, mid.y, mid.z);
                 branchParts.push(g);
             }
-            tree.add(new THREE.Mesh(mergeGeoms(branchParts), barkMat));
-
-            // ---- 树冠：叶子长在枝端和枝条中段（自然疏密、不规则外轮廓） ----
+            bigTreeGroup.add(new THREE.Mesh(mergeGeoms(branchParts), barkMat));
             treeFoliage = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.9, 2.8),
                 new THREE.MeshStandardMaterial({ map: makeLeafTexture(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7 }), 900);
             const m4 = new THREE.Matrix4();
-            // 枝端位置（叶团中心）+ 枝条中段（少量叶子）
-            const tips = [
-                new THREE.Vector3(5.4, 22.6, 2.4),
-                new THREE.Vector3(-4.4, 22.8, 3.4),
-                new THREE.Vector3(-5.6, 22.6, -3.2),
-                new THREE.Vector3(1.4, 23.6, -4.6),
-                new THREE.Vector3(-1.6, 24.2, 4.2),
-                new THREE.Vector3(0.2, 25.4, 0.2)
-            ];
-            const mids = [
-                new THREE.Vector3(2.8, 20.6, 1.3),
-                new THREE.Vector3(-2.3, 20.8, 1.8),
-                new THREE.Vector3(-2.9, 20.8, -1.7),
-                new THREE.Vector3(0.7, 21.2, -2.4),
-                new THREE.Vector3(-0.8, 21.5, 2.2)
+            const cc = new THREE.Vector3(2.4, 22.4, -2.0);
+            const clumps = [
+                [0, 0, 0, 4.2], [4.2, 0.6, 1.6, 3.2], [-4.0, 0.2, 1.2, 3.2],
+                [1.4, 1.2, -3.4, 3.0], [-2.2, -0.8, 2.6, 3.0], [0.4, -1.4, -2.8, 2.8], [3.2, -0.4, -2.2, 2.6]
             ];
             let leafIdx = 0;
-            const put = (px, py, pz, s, droop) => {
-                const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-                    (Math.random() - 0.5) * 1.4, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 1.4));
-                m4.compose(new THREE.Vector3(px, py, pz), q, new THREE.Vector3(s, s, s));
-                treeFoliage.setMatrixAt(leafIdx++, m4);
-            };
-            // 枝端叶团（大团，外缘下垂）
-            for (const tip of tips) {
-                const n = 120;
-                for (let i = 0; i < n && leafIdx < 900; i++) {
+            const per = Math.ceil(900 / clumps.length);
+            for (const cl of clumps) {
+                for (let i = 0; i < per && leafIdx < 900; i++, leafIdx++) {
                     const a = Math.random() * Math.PI * 2;
-                    const rr = Math.pow(Math.random(), 0.55) * 2.6;
-                    put(tip.x + Math.cos(a) * rr, tip.y + (Math.random() - 0.3) * 2.2 - rr * 0.22, tip.z + Math.sin(a) * rr, 0.7 + Math.random() * 1.1, true);
+                    const rr = Math.pow(Math.random(), 0.5) * cl[3];
+                    const px = cc.x + cl[0] + Math.cos(a) * rr;
+                    const pz = cc.z + cl[2] + Math.sin(a) * rr;
+                    const py = cc.y + cl[1] + (Math.random() - 0.4) * 3.2;
+                    const s = 0.85 + Math.random() * 0.95;
+                    m4.compose(new THREE.Vector3(px, py, pz),
+                        new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, Math.random() * 3)),
+                        new THREE.Vector3(s, s, s));
+                    treeFoliage.setMatrixAt(leafIdx, m4);
                 }
             }
-            // 枝条中段散叶（少量）
-            for (const mid of mids) {
-                for (let i = 0; i < 22 && leafIdx < 900; i++) {
-                    put(mid.x + (Math.random() - 0.5) * 3.2, mid.y + (Math.random() - 0.3) * 2.2, mid.z + (Math.random() - 0.5) * 3.2, 0.6 + Math.random() * 0.8, true);
-                }
-            }
-            tree.add(treeFoliage);
+            bigTreeGroup.add(treeFoliage);
+            scene.add(bigTreeGroup);
+        }
+        // 加载 Blender 建模的 tree.glb（成功则替换程序化大树）
+        async function loadTreeModel() {
+            try {
+                const gltf = await new GLTFLoader().loadAsync('assets/tree.glb');
+                const model = gltf.scene;
+                const box = new THREE.Box3().setFromObject(model);
+                const size = box.getSize(new THREE.Vector3());
+                const scale = 26 / Math.max(size.y, 0.001);
+                model.scale.setScalar(scale);
+                box.setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                model.position.x -= center.x;
+                model.position.z -= center.z;
+                model.position.y -= box.min.y;
+                if (bigTreeGroup) scene.remove(bigTreeGroup);
+                bigTreeGroup = new THREE.Group();
+                bigTreeGroup.position.set(-15, 0.14, 7);
+                bigTreeGroup.add(model);
+                scene.add(bigTreeGroup);
+                treeLeafMats.length = 0;
+                model.traverse(o => {
+                    if (o.isMesh && o.material && o.material.name === 'Leaves') treeLeafMats.push(o.material);
+                });
+                return true;
+            } catch (e) { return false; }
         }
 
         function setTreeSeason(s) {
@@ -816,6 +822,9 @@
                 treeFoliage.setColorAt(i, new THREE.Color(cols[(i * 7 + Math.floor(i / 3)) % cols.length]));
             }
             treeFoliage.instanceColor.needsUpdate = true;
+            for (let i = 0; i < treeLeafMats.length; i++) {
+                treeLeafMats[i].color.set(cols[i % cols.length]);
+            }
             if (shadeBlob) shadeBlob.material.opacity = s === 'winter' ? 0.06 : 0.13;
             if (window.__particles) {
                 window.__particles.material.color.set(s === 'spring' ? 0xffb7c9 : s === 'autumn' ? 0xe8590c : s === 'winter' ? 0xdfe8f4 : 0xffd0f0);
@@ -1411,7 +1420,8 @@
             buildGate();               // 游乐园大门
             buildGachaMachine();       // 设施一：扭蛋机摊位
             buildTreePad();            // 设施二：大树延伸圆台（与木马相连）
-            buildBigTree();            // 设施二：四季大树
+            buildBigTree();            // 程序化兜底大树
+            loadTreeModel().then(ok => { if (ok) setTreeSeason(treeSeason); });   // Blender 建模的树（有就替换）
             buildReservedPad(-20, -14);   // 预留空位（未来项目）
             buildReservedPad(18, -20);    // 预留空位（未来项目）
             initSeason();                 // 四季（默认春樱粉，记住上次选择）
