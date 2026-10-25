@@ -152,6 +152,21 @@
             t.wrapS = THREE.RepeatWrapping; t.repeat.x = 2; return t;
         }
 
+  // 叶形贴图：白色叶轮廓 + 叶脉（配合 instanceColor 染色 + alphaTest 裁形）
+  function makeLeafTexture() {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(32, 2);
+    ctx.quadraticCurveTo(60, 22, 32, 62);
+    ctx.quadraticCurveTo(4, 22, 32, 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(32, 6); ctx.lineTo(32, 58); ctx.stroke();
+    return new THREE.CanvasTexture(c);
+  }
+
         function makeHorse(bodyColor, saddleColor, goldMat) {
             const g = new THREE.Group();
             const mat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.45 });
@@ -720,38 +735,45 @@
             tree.position.set(-15, 0.14, 7);
             const barkMat = new THREE.MeshStandardMaterial({ color: 0x6b4f33, roughness: 0.85 });
             // 树干（上细下粗）
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.5, 13, 10), barkMat);
-            trunk.position.y = 6.5;
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.4, 19.5, 10), barkMat);
+            trunk.position.y = 9.85;
             tree.add(trunk);
             // 大枝 ×4（伸向木马方向为主）
             const branches = new THREE.Mesh(mergeGeoms([
-                xformGeo(new THREE.CylinderGeometry(0.24, 0.4, 6.4, 8), 3.0, 12.4, 2.0, 0, 0, -0.85),
-                xformGeo(new THREE.CylinderGeometry(0.22, 0.36, 5.6, 8), -1.5, 12.8, 2.4, 0.35, 0, 0.4),
-                xformGeo(new THREE.CylinderGeometry(0.22, 0.36, 5.4, 8), -3.2, 13.0, -2.0, -0.5, 0, -0.5),
-                xformGeo(new THREE.CylinderGeometry(0.2, 0.34, 5.0, 8), 0.5, 13.4, -3.0, -0.9, 0, 0.6)
+                xformGeo(new THREE.CylinderGeometry(0.24, 0.4, 7.2, 8), 3.2, 17.6, 2.2, 0, 0, -0.9),
+                xformGeo(new THREE.CylinderGeometry(0.22, 0.36, 6.2, 8), -2.0, 17.8, 2.6, 0.4, 0, 0.45),
+                xformGeo(new THREE.CylinderGeometry(0.22, 0.36, 6.0, 8), -3.6, 18.0, -2.2, -0.55, 0, -0.55),
+                xformGeo(new THREE.CylinderGeometry(0.2, 0.34, 5.6, 8), 0.6, 18.6, -3.2, -0.95, 0, 0.65),
+                xformGeo(new THREE.CylinderGeometry(0.2, 0.32, 5.4, 8), -0.6, 19.4, 2.8, 0.7, 0, -0.5)
             ]), barkMat);
             tree.add(branches);
             // 树冠：大量叶团（InstancedMesh，随季节变色）
-            const leafBase = new THREE.SphereGeometry(1, 6, 4);
-            leafBase.scale(0.55, 0.09, 1);   // 压成一片扁平的叶子
-            treeFoliage = new THREE.InstancedMesh(leafBase,
-                new THREE.MeshStandardMaterial({ roughness: 0.7, side: THREE.DoubleSide }), 620);
+            treeFoliage = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.9, 2.8),
+                new THREE.MeshStandardMaterial({ map: makeLeafTexture(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7 }), 900);
             const m4 = new THREE.Matrix4();
-            // 树冠中心偏向木马（覆盖其一半），椭球分布
-            const cx = 2.8, cy = 22.9, cz = -2.2;
-            for (let i = 0; i < 220; i++) {
-                const a = Math.random() * Math.PI * 2;
-                const rr = Math.pow(Math.random(), 0.6);
-                const px = Math.cos(a) * rr * 9.6;
-                const pz = Math.sin(a) * rr * 9.6;
-                const py = (Math.random() - 0.45) * 6.4 * (1 - rr * 0.35);
-                const s = 0.9 + Math.random() * 1.0;
-                m4.compose(
-                    new THREE.Vector3(cx + px, cy + py, cz + pz),
-                    new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, Math.random() * 3)),
-                    new THREE.Vector3(s, s, s)
-                );
-                treeFoliage.setMatrixAt(i, m4);
+            // 树冠：几个叶团聚成一顶茂密的树冠（盖住木马左半边的上方）
+            const cc = new THREE.Vector3(2.4, 23.8, -2.0);
+            const clumps = [
+                [0, 0, 0, 4.4], [4.4, 0.6, 1.6, 3.4], [-4.2, 0.2, 1.4, 3.4],
+                [1.6, 1.4, -3.6, 3.2], [-2.4, -1.0, 2.8, 3.2], [0.4, -1.6, -3.0, 3.0], [3.4, -0.6, -2.4, 2.8]
+            ];
+            let leafIdx = 0;
+            const per = Math.ceil(900 / clumps.length);
+            for (const cl of clumps) {
+                for (let i = 0; i < per && leafIdx < 900; i++, leafIdx++) {
+                    const a = Math.random() * Math.PI * 2;
+                    const rr = Math.pow(Math.random(), 0.5) * cl[3];
+                    const px = cc.x + cl[0] + Math.cos(a) * rr;
+                    const pz = cc.z + cl[2] + Math.sin(a) * rr;
+                    const py = cc.y + cl[1] + (Math.random() - 0.4) * 3.4;
+                    const s = 0.85 + Math.random() * 0.95;
+                    m4.compose(
+                        new THREE.Vector3(px, py, pz),
+                        new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, Math.random() * 3)),
+                        new THREE.Vector3(s, s, s)
+                    );
+                    treeFoliage.setMatrixAt(leafIdx, m4);
+                }
             }
             tree.add(treeFoliage);
             scene.add(tree);
