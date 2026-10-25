@@ -16,6 +16,7 @@ import urllib.request
 OWNER, REPO = "wanyuchen999-ai", "carousel"
 BRANCH = "main"
 SKIP_DIRS = {".git", "node_modules"}
+SKIP_PATHS = {"app.js", "assets/_patch2.py", "assets/_patch3.py", "assets/defined.txt", "assets/used.txt", "assets/_fix.py", "assets/_check.mjs"}
 SKIP_FILES = {".DS_Store", "Thumbs.db", "_payload.json", "_check.mjs"}
 COMMIT_MSG = "更新网站文件"
 
@@ -40,6 +41,9 @@ def collect_files():
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for f in sorted(files):
             if f in SKIP_FILES:
+                continue
+            rel = os.path.relpath(os.path.join(root, f), ".").replace("\\", "/")
+            if rel in SKIP_PATHS:
                 continue
             rel = os.path.relpath(os.path.join(root, f), ".")
             found.append(rel.replace("\\", "/"))
