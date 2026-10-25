@@ -393,22 +393,22 @@
                 vinePts.push(new THREE.Vector3(5.0 + Math.cos(ang) * 1.12, 0.4 + i * 0.78, Math.sin(ang) * 1.12));
             }
             const vineCurve = new THREE.CatmullRomCurve3(vinePts);
-            gate.add(new THREE.Mesh(new THREE.TubeGeometry(vineCurve, 140, 0.12, 6, false), vineMat));
+            gate.add(new THREE.Mesh(new THREE.TubeGeometry(vineCurve, 180, 0.2, 7, false), vineMat));
             const vine2Pts = [];
-            for (let i = 0; i <= 7; i++) {
-                const ang = 1.2 + i * 1.15;
-                vine2Pts.push(new THREE.Vector3(5.0 + Math.cos(ang) * 1.15, 0.35 + i * 0.95, Math.sin(ang) * 1.15));
+            for (let i = 0; i <= 11; i++) {
+                const ang = 1.2 + i * 0.8;
+                vine2Pts.push(new THREE.Vector3(5.0 + Math.cos(ang) * 1.15, 0.35 + i * 0.62, Math.sin(ang) * 1.15));
             }
-            gate.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(vine2Pts), 60, 0.1, 6, false), vineMat));
+            gate.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(vine2Pts), 80, 0.15, 6, false), vineMat));
 
             // ---- 藤上的叶子 ----
             const leafGeo = new THREE.SphereGeometry(0.16, 6, 5);
-            const LEAVES = 40;
+            const LEAVES = 64;
             const leaves = new THREE.InstancedMesh(leafGeo, leafMat, LEAVES);
             const lm4 = new THREE.Matrix4();
             for (let i = 0; i < LEAVES; i++) {
                 const pt = vineCurve.getPoint(Math.random());
-                lm4.setPosition(pt.x + (Math.random() - 0.5) * 0.55, pt.y + (Math.random() - 0.5) * 0.35, pt.z + (Math.random() - 0.5) * 0.55);
+                lm4.setPosition(pt.x + (Math.random() - 0.5) * 0.7, pt.y + (Math.random() - 0.5) * 0.45, pt.z + (Math.random() - 0.5) * 0.7);
                 leaves.setMatrixAt(i, lm4);
             }
             gate.add(leaves);
@@ -416,13 +416,13 @@
             // ---- 藤上的花：有大有小（一个字那么大的也有） ----
             const flowerGeo = new THREE.IcosahedronGeometry(1, 0);
             const flowerMat = new THREE.MeshStandardMaterial({ roughness: 0.45 });
-            const FLOWERS = 26;
+            const FLOWERS = 40;
             const flowers = new THREE.InstancedMesh(flowerGeo, flowerMat, FLOWERS);
             const flowerCols = [0xf7d6e0, 0xfff2c9, 0xffffff, 0xf7d6e0, 0xffe9b0];
             const fm4 = new THREE.Matrix4();
             for (let i = 0; i < FLOWERS; i++) {
                 const pt = vineCurve.getPoint(Math.random());
-                const s = 0.16 + Math.random() * 0.34;
+                const s = 0.2 + Math.random() * 0.44;
                 fm4.compose(
                     new THREE.Vector3(pt.x + (Math.random() - 0.5) * 0.6, pt.y + (Math.random() - 0.5) * 0.4, pt.z + (Math.random() - 0.5) * 0.6),
                     new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, 0)),
@@ -539,6 +539,7 @@
                 gate.add(bush);
             }
 
+            gate.scale.setScalar(1.15);
             gate.position.set(0, 0, 30);
             scene.add(gate);
         }
@@ -1422,6 +1423,10 @@
             buildTreePad();            // 设施二：大树延伸圆台（与木马相连）
             buildBigTree();            // 程序化兜底大树
             loadTreeModel().then(ok => { if (ok) setTreeSeason(treeSeason); });   // Blender 建模的树（有就替换）
+            loadKenneyNature().then(ok => {
+                if (ok && bigTreeGroup) { scene.remove(bigTreeGroup); bigTreeGroup = null; }
+                setTreeSeason(treeSeason);   // 应用季节染色（含 Kenney 树）
+            });
             buildReservedPad(-20, -14);   // 预留空位（未来项目）
             buildReservedPad(18, -20);    // 预留空位（未来项目）
             initSeason();                 // 四季（默认春樱粉，记住上次选择）
