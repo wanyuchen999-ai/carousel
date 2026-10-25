@@ -1,3 +1,12 @@
+        window.addEventListener('error', (e) => {
+            const el = document.getElementById('loading-text');
+            if (el) el.textContent = '启动失败：' + e.message + ' @行' + e.lineno;
+        });
+        window.addEventListener('unhandledrejection', (e) => {
+            const el = document.getElementById('loading-text');
+            if (el) el.textContent = '启动失败(Promise)：' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+        });
+
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -1964,7 +1973,7 @@
             blending: THREE.AdditiveBlending, depthWrite: false
         }));
         scene.add(particleSystem);
-        window.__particles = particles;
+        window.__particles = particleSystem;
 
         /* ============================================================
          * 8. 动画主循环
