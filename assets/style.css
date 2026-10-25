@@ -183,3 +183,20 @@
             border: 1px solid rgba(255, 220, 160, 0.35); border-radius: 999px;
             padding: 8px 14px; font-size: 13px; cursor: pointer;
         }
+
+/* ---------- 四季切换（右上角） ---------- */
+#season-bar {
+  top: 64px; right: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#season-bar button {
+  background: rgba(30, 26, 58, 0.72); color: #ffe9c4;
+  border: 1px solid rgba(255, 220, 160, 0.35);
+  border-radius: 999px; padding: 7px 12px; font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+}
+#season-bar button:hover { background: rgba(70, 55, 110, 0.85); }
+#season-bar button.active {
+  background: #d4af37; color: #1a1408;
+  border-color: #d4af37; font-weight: 600;
+}
