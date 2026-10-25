@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 八音盒旋转木马 · 照片相册</title>
+  <link rel="stylesheet" href="./assets/style.css?v=dev" />
+</head>
+<body>
+    <div id="light-overlay"></div>
+
+    <div class="hud" id="title-card">
+        <h1>🎵 八音盒旋转木马</h1>
+        <div id="mode-line">公共木马 · 上传照片生成你的专属链接</div>
+    </div>
+    <div id="code-entry">
+        <input id="album-code" maxlength="6" placeholder="相册编号">
+        <button id="btn-open-code">打开</button>
+    </div>
+    <div class="hud" id="status-chip">正在初始化…</div>
+  <div class="hud" id="season-bar">
+    <button data-season="spring">🌸 春</button>
+    <button data-season="summer">🌿 夏</button>
+    <button data-season="autumn">🍂 秋</button>
+    <button data-season="winter">❄️ 冬</button>
+  </div>
+    <div class="hud" id="hint">按住空白处左右拖动 → 推动木马 · 碰到照片/丝线 → 拨动它们 · 拖照片交换位置 · 点扭蛋机 → 抽一张纸条</div>
+    <div class="hud" id="controls">
+        <button id="btn-upload">📷 上传照片</button>
+        <button id="btn-music">🎵 更换音乐</button>
+        <button id="btn-share">🔗 复制分享链接</button>
+        <button id="btn-note">🍬 加纸条</button>
+    <button id="btn-overview">🗺️ 游乐园全景</button>
+        <button id="btn-album">🎁 创建我的专属相册</button>
+        <button id="btn-mute" class="show">🔊 音乐开</button>
+    </div>
+    <div class="hud" id="confirm-chip">
+        <span id="confirm-text">删除这张照片？</span>
+        <button id="confirm-yes">删除</button>
+        <button id="confirm-no">取消</button>
+    </div>
+    <div id="toast"></div>
+
+  <div id="note-modal" class="modal-overlay">
+    <div class="note-modal-box">
+      <div id="note-choice">
+        <div class="note-title">做一张纸条放进扭蛋机</div>
+        <button id="note-add-image" class="note-opt">📷 拍照 / 选图片（手写日记、票根…）</button>
+        <button id="note-add-text" class="note-opt">✍️ 打字（自动变成手写体）</button>
+        <button id="note-cancel" class="note-cancel">取消</button>
+      </div>
+      <div id="note-text-view" style="display:none">
+        <div class="note-title">写一句想放进扭蛋里的话</div>
+        <textarea id="note-text" maxlength="80" placeholder="今天也要开心呀…"></textarea>
+        <canvas id="note-preview" width="320" height="420"></canvas>
+        <div class="note-actions">
+          <button id="note-text-cancel">返回</button>
+          <button id="note-save">保存并放入扭蛋</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="egg-modal" class="modal-overlay">
+    <button id="egg-close">✕</button>
+    <img id="egg-paper" alt="纸条" />
+    <div id="egg-actions">
+      <button id="egg-again">🎲 再扭一次</button>
+      <button id="egg-delete">🗑️ 删除这张纸条</button>
+    </div>
+  </div>
+
+  <input type="file" id="file-note" accept="image/*" hidden />
+    <div class="hud" id="credit">推荐模型: Christmas Carousel · SkyeSladeUT @ Sketchfab (CC-BY)</div>
+
+    <div id="loading"><span class="ball">🎠</span><span id="loading-text">八音盒启动中…</span>
+    <div id="file-hint" style="display:none; font-size:12px; color:#9a94bd; max-width:80vw; text-align:center; line-height:1.6;">
+      检测到你是直接双击打开的本地文件——浏览器安全策略会阻止它运行。<br />
+      请改用线上网址访问，或在文件夹里运行 <b>python -m http.server 8000</b> 后打开 localhost:8000（方法见 README）
+    </div>
+  </div>
+
+    <input type="file" id="file-photo" accept="image/*" multiple hidden>
+    <input type="file" id="file-music" accept="audio/*" hidden>
+
+  <!-- Supabase 本地化打包：即使 esm.sh 不稳也能初始化云连接 -->
+  <script src="./assets/vendor/supabase.js"></script>
+
+  <script type="importmap">
+  { "imports": {
+      "three": "./assets/vendor/three.module.js",
+      "three/addons/": "./assets/vendor/three-addons/"
+  } }
+  </script>
+
+  <script type="module" src="./assets/app.js?v=dev"></script>
+</body>
+</html>
