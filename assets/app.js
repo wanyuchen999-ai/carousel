@@ -34,6 +34,23 @@
         let gachaAnim = null, gachaTwisting = false;
         let ballAlive = [];
         const CANDY_COLORS = [0xff6b81, 0xffd93d, 0x6bcb77, 0x4d96ff, 0xef7ae5, 0xffa64d];
+        // 游乐园柔和配色（沿用旋转木马的金/奶油主调，去掉大红大蓝）
+        const PARK_C = {
+            ground: 0xa8b894,   // 柔和鼠尾草绿地面
+            path: 0xe3d9bd,     // 奶油步道
+            stone: 0xcfc5b4,    // 暖石块
+            stoneDark: 0xb3a68f,
+            wood: 0x9a8262,
+            cream: 0xf6f1e7,
+            gold: 0xd4af37,
+            frame: 0xf1ead9,    // 温室白框
+            leaf: 0x8fae7e,     // 柔和绿叶
+            leafDark: 0x74936a,
+            vine: 0x7a9b6d,
+            flowerA: 0xf7d6e0,  // 粉花
+            flowerB: 0xfff2c9,  // 黄花
+            flowerC: 0xffffff   // 白花
+        };
         const visitorId = (() => {      // 每台浏览器一个随机身份，不用登录
             let v = localStorage.getItem('car_visitor');
             if (!v) { v = crypto.randomUUID(); localStorage.setItem('car_visitor', v); }
@@ -287,65 +304,141 @@
               ]).catch(() => {})
             : Promise.resolve();
 
-        /* ==================== 游乐园大门 ==================== */
+        /* ==================== 游乐园大门（石拱 + 藤蔓小花 + 挂匾） ==================== */
         function buildGate() {
             const gate = new THREE.Group();
-            const redMat = new THREE.MeshStandardMaterial({ color: 0xb8302e, roughness: 0.4 });
-            const creamMat = new THREE.MeshStandardMaterial({ color: 0xf6f1e7, roughness: 0.5 });
-            const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.75, roughness: 0.3 });
-            const left = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 7, 14), redMat);
-            left.position.set(-4.2, 3.5, 0);
-            const right = left.clone(); right.position.x = 4.2;
-            const top = new THREE.Mesh(new THREE.BoxGeometry(10.4, 1.1, 1.0), creamMat);
-            top.position.set(0, 7.2, 0);
-            const roofL = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.2, 10), goldMat);
-            roofL.position.set(-4.2, 8.2, 0);
-            const roofR = roofL.clone(); roofR.position.x = 4.2;
-            // 牌匾：深色木板 + 金色手写艺术字（字体加载后重绘）
+            const stone = new THREE.MeshStandardMaterial({ color: PARK_C.stone, roughness: 0.9 });
+            const stoneDark = new THREE.MeshStandardMaterial({ color: PARK_C.stoneDark, roughness: 0.9 });
+            const goldMat = new THREE.MeshStandardMaterial({ color: PARK_C.gold, metalness: 0.6, roughness: 0.35 });
+            const vineMat = new THREE.MeshStandardMaterial({ color: PARK_C.vine, roughness: 0.75 });
+            const leafMat = new THREE.MeshStandardMaterial({ color: PARK_C.leaf, roughness: 0.8 });
+
+            const stoneParts = [];
+            const block = (x, y, z, w, h, d, j) => {
+                const g = new THREE.BoxGeometry(w + j, h + j * 0.6, d + j);
+                g.applyMatrix4(new THREE.Matrix4().setPosition(x, y, z));
+                g.rotateY((Math.random() - 0.5) * 0.05);
+                return g;
+            };
+            // 两侧石柱：错缝石块 ×6 层
+            for (let i = 0; i < 6; i++) {
+                const y = 0.55 + i * 1.02;
+                stoneParts.push(block(-4.4, y, 0, 1.7, 0.98, 1.6, 0.1));
+                stoneParts.push(block(4.4, y, 0, 1.7, 0.98, 1.6, 0.1));
+            }
+            // 石拱：半圆弧 9 块楔形石（圆心 y6.3 半径 4.4）
+            for (let i = 0; i <= 8; i++) {
+                const a = Math.PI * (1 - i / 8);
+                const x = Math.cos(a) * 4.4;
+                const y = 6.3 + Math.sin(a) * 4.4;
+                stoneParts.push(xformGeo(new THREE.BoxGeometry(1.9, 1.02, 1.6), x, y, 0, 0, 0, a + Math.PI / 2));
+            }
+            // 拱心石（微凸 + 金色徽记）
+            stoneParts.push(xformGeo(new THREE.BoxGeometry(1.15, 1.15, 1.8), 0, 10.85, 0));
+            const arch = new THREE.Mesh(mergeGeoms(stoneParts), stone);
+            arch.castShadow = true;
+            gate.add(arch);
+            // 拱心金徽记
+            const emblem = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.07, 8, 20), goldMat);
+            emblem.position.set(0, 10.85, 0.86);
+            gate.add(emblem);
+            const star = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6),
+                new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xd4af37, emissiveIntensity: 0.9 }));
+            star.position.set(0, 10.85, 0.95);
+            gate.add(star);
+
+            // 石阶
+            const step1 = new THREE.Mesh(new THREE.BoxGeometry(12.5, 0.3, 2.2), stoneDark);
+            step1.position.set(0, 0.15, 0.4);
+            const step2 = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.3, 1.6), stone);
+            step2.position.set(0, 0.45, 0.3);
+            gate.add(step1, step2);
+
+            // ---- 藤蔓：左柱螺旋上 → 绕过拱顶 → 右柱垂下 ----
+            const vinePts = [];
+            for (let i = 0; i <= 5; i++) {
+                const ang = i * 0.9;
+                vinePts.push(new THREE.Vector3(-4.4 + Math.cos(ang) * 0.98, 0.5 + i * 1.06, Math.sin(ang) * 0.98));
+            }
+            for (let s = 0; s <= 4; s++) {
+                const a = Math.PI - (s / 4) * Math.PI;
+                vinePts.push(new THREE.Vector3(Math.cos(a) * 4.15, 6.35 + Math.sin(a) * 4.15, 0.72));
+            }
+            for (let i = 5; i >= 0; i--) {
+                const ang = i * 0.9 + 1.4;
+                vinePts.push(new THREE.Vector3(4.4 + Math.cos(ang) * 0.98, 0.5 + i * 1.06, Math.sin(ang) * 0.98));
+            }
+            const vineCurve = new THREE.CatmullRomCurve3(vinePts);
+            const vine = new THREE.Mesh(new THREE.TubeGeometry(vineCurve, 90, 0.085, 6, false), vineMat);
+            gate.add(vine);
+            const vine2Pts = [];
+            for (let i = 0; i <= 4; i++) {
+                const ang = 1.2 + i * 1.1;
+                vine2Pts.push(new THREE.Vector3(4.4 + Math.cos(ang) * 1.0, 0.4 + i * 1.35, Math.sin(ang) * 1.0));
+            }
+            const vine2 = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(vine2Pts), 40, 0.07, 6, false), vineMat);
+            gate.add(vine2);
+
+            // ---- 小花：沿藤蔓随机点缀（粉/白/黄） ----
+            const flowerGeo = new THREE.IcosahedronGeometry(0.1, 0);
+            const flowerMat = new THREE.MeshStandardMaterial({ roughness: 0.5 });
+            const FLOWERS = 30;
+            const flowers = new THREE.InstancedMesh(flowerGeo, flowerMat, FLOWERS);
+            const flowerCols = [PARK_C.flowerA, PARK_C.flowerB, PARK_C.flowerC];
+            const fm4 = new THREE.Matrix4();
+            for (let i = 0; i < FLOWERS; i++) {
+                const pt = vineCurve.getPoint(Math.random());
+                fm4.setPosition(pt.x + (Math.random() - 0.5) * 0.5, pt.y + (Math.random() - 0.5) * 0.4, pt.z + (Math.random() - 0.5) * 0.5);
+                flowers.setMatrixAt(i, fm4);
+                flowers.setColorAt(i, new THREE.Color(flowerCols[i % flowerCols.length]));
+            }
+            gate.add(flowers);
+
+            // ---- 挂匾：以你为名的乐园 ----
             const bsc = document.createElement('canvas'); bsc.width = 1024; bsc.height = 256;
             const drawBoard = () => {
                 const bx = bsc.getContext('2d');
                 const g = bx.createLinearGradient(0, 0, 0, 256);
-                g.addColorStop(0, '#241533'); g.addColorStop(1, '#120a1e');
+                g.addColorStop(0, '#f8f3e6'); g.addColorStop(1, '#ece2cc');
                 bx.fillStyle = g; bx.fillRect(0, 0, 1024, 256);
-                bx.strokeStyle = '#d4af37'; bx.lineWidth = 10; bx.strokeRect(14, 14, 996, 228);
-                bx.strokeStyle = 'rgba(212,175,55,0.5)'; bx.lineWidth = 3; bx.strokeRect(30, 30, 964, 196);
-                bx.fillStyle = '#d4af37';
-                for (const pt of [[30, 30], [994, 30], [30, 226], [994, 226]]) {
-                    bx.beginPath(); bx.arc(pt[0], pt[1], 9, 0, Math.PI * 2); bx.fill();
+                bx.strokeStyle = '#8a7a58'; bx.lineWidth = 8; bx.strokeRect(10, 10, 1004, 236);
+                bx.fillStyle = '#7a9b6d';
+                for (const pt of [[46, 44], [978, 44], [46, 212], [978, 212]]) {
+                    bx.beginPath(); bx.arc(pt[0], pt[1], 14, 0, Math.PI * 2); bx.fill();
                 }
-                bx.fillStyle = '#ffe9b0';
-                bx.shadowColor = 'rgba(255,200,100,0.55)'; bx.shadowBlur = 26;
-                bx.font = '150px "Ma Shan Zheng", "KaiTi", cursive';
+                bx.fillStyle = '#fdf8ec';
+                for (const pt of [[46, 44], [978, 44], [46, 212], [978, 212]]) {
+                    bx.beginPath(); bx.arc(pt[0], pt[1], 7, 0, Math.PI * 2); bx.fill();
+                }
+                bx.fillStyle = '#4a3a20';
+                bx.shadowColor = 'rgba(80,60,20,0.35)'; bx.shadowBlur = 10;
+                bx.font = '128px "Ma Shan Zheng", "KaiTi", cursive';
                 bx.textAlign = 'center'; bx.textBaseline = 'middle';
-                bx.fillText('梦幻游乐园', 512, 140);
+                bx.fillText('以你为名的乐园', 512, 136);
                 bx.shadowBlur = 0;
-                bx.fillStyle = 'rgba(255,233,176,0.75)';
-                bx.font = '26px sans-serif';
-                bx.fillText('· D R E A M · P A R K ·', 512, 226);
             };
             drawBoard();
-            fontReady.then(() => { drawBoard(); signTex.needsUpdate = true; });
-            const signTex = new THREE.CanvasTexture(bsc);
-            const sign = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 2.9),
-                new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, toneMapped: false }));
-            sign.position.set(0, 7.3, 0.6);
-            const boardBack = new THREE.Mesh(new THREE.BoxGeometry(12.2, 3.2, 0.16),
-                new THREE.MeshStandardMaterial({ color: 0x1a1030, roughness: 0.6 }));
-            boardBack.position.set(0, 7.3, 0.5);
-            const lanternMat = new THREE.MeshStandardMaterial({ color: 0xd84545, roughness: 0.4, emissive: 0x882020, emissiveIntensity: 0.6 });
-            const lanterns = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 10, 8), lanternMat, 6);
-            const lm4 = new THREE.Matrix4();
-            for (let i = 0; i < 6; i++) lm4.setPosition(-4.4 + i * 1.76, 6.1, 0.8), lanterns.setMatrixAt(i, lm4);
-            gate.add(lanterns);
-            const walk = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.06, 22),
-                new THREE.MeshStandardMaterial({ color: 0x6e5a35, roughness: 0.85 }));
-            walk.position.set(0, 0.02, 41);
-            const lampL = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8),
-                new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffcc66, emissiveIntensity: 1.5 }));
-            lampL.position.set(-4.2, 6.2, 0);
-            const lampR = lampL.clone(); lampR.position.x = 4.2;
-            gate.add(left, right, top, roofL, roofR, sign, boardBack, walk, lampL, lampR, lanterns);
+            fontReady.then(() => { drawBoard(); boardTex.needsUpdate = true; });
+            const boardTex = new THREE.CanvasTexture(bsc);
+            const board = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.6),
+                new THREE.MeshBasicMaterial({ map: boardTex, side: THREE.DoubleSide, toneMapped: false }));
+            board.position.set(0, 8.9, 0.3);
+            gate.add(board);
+            const chainGeo = new THREE.CylinderGeometry(0.035, 0.035, 1.15, 6);
+            const chainL = new THREE.Mesh(chainGeo, goldMat);
+            chainL.position.set(-2.0, 9.85, 0.3);
+            const chainR = chainL.clone(); chainR.position.x = 2.0;
+            gate.add(chainL, chainR);
+
+            // 门柱顶小灌木球
+            const bushMat = new THREE.MeshStandardMaterial({ color: PARK_C.leafDark, roughness: 0.8 });
+            for (const px of [-4.4, 4.4]) {
+                const bush = new THREE.Mesh(new THREE.SphereGeometry(0.62, 10, 8), bushMat);
+                bush.position.set(px, 6.75, 0);
+                bush.scale.y = 0.85;
+                gate.add(bush);
+            }
+
             gate.position.set(0, 0, 30);
             scene.add(gate);
         }
@@ -400,11 +493,11 @@
         function buildPark() {
             const park = new THREE.Group();
             const grass = new THREE.Mesh(new THREE.CircleGeometry(30, 48),
-                new THREE.MeshStandardMaterial({ color: 0x141433, roughness: 0.9 }));
+                new THREE.MeshStandardMaterial({ color: 0x9db089, roughness: 0.9 }));
             grass.rotation.x = -Math.PI / 2; grass.position.y = -0.06;
             park.add(grass);
             const path = new THREE.Mesh(new THREE.RingGeometry(17.5, 21, 48),
-                new THREE.MeshStandardMaterial({ color: 0x6e5a35, roughness: 0.85 }));
+                new THREE.MeshStandardMaterial({ color: 0xe3d9bd, roughness: 0.85 }));
             path.rotation.x = -Math.PI / 2; path.position.y = 0.02;
             park.add(path);
             const pad1 = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 0.12, 24),
@@ -439,8 +532,8 @@
                 lampBulbs.setMatrixAt(i, m4);
             }
             park.add(lampPosts, lampBulbs);
-            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 0.7 });
-            const crownMat = new THREE.MeshStandardMaterial({ color: 0x1f4752, roughness: 0.8 });
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8a7358, roughness: 0.7 });
+            const crownMat = new THREE.MeshStandardMaterial({ color: 0x74936a, roughness: 0.8 });
             const TREES = 8;
             const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.14, 0.2, 1.2, 6), trunkMat, TREES);
             const crowns1 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.15, 1.7, 8), crownMat, TREES);
@@ -606,7 +699,7 @@
 
             // 遮阳棚（红白条纹，前倾）
             const awning = new THREE.Mesh(new THREE.BoxGeometry(10.4, 0.18, 3.4),
-                new THREE.MeshStandardMaterial({ map: makeStripeTexture('#b8302e', '#f5ead0', 10, 512, 128), roughness: 0.55 }));
+                new THREE.MeshStandardMaterial({ map: makeStripeTexture('#c9a86a', '#f5ead0', 10, 512, 128), roughness: 0.55 }));
             awning.position.set(0, 6.1, 1.1);
             awning.rotation.x = 0.16;
             gachaGroup.add(awning);
