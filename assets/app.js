@@ -828,7 +828,7 @@
                 const model = gltf.scene;
                 const box = new THREE.Box3().setFromObject(model);
                 const size = box.getSize(new THREE.Vector3());
-                const scale = 26 / Math.max(size.y, 0.001);
+                const scale = 30 / Math.max(size.y, 0.001);
                 model.scale.setScalar(scale);
                 box.setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
@@ -837,7 +837,7 @@
                 model.position.y -= box.min.y;
                 if (bigTreeGroup) scene.remove(bigTreeGroup);
                 bigTreeGroup = new THREE.Group();
-                bigTreeGroup.position.set(-15, 0.14, 7);
+                bigTreeGroup.position.set(-26, 0.14, 14);
                 bigTreeGroup.add(model);
                 scene.add(bigTreeGroup);
                 treeLeafMats.length = 0;
