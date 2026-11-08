@@ -92,7 +92,7 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0x504a5e, 1.9));
+        scene.add(new THREE.AmbientLight(0x5a5570, 2.3));
         const spotLight = new THREE.SpotLight(0xffdd88, 800, 120, Math.PI / 4, 0.5, 2);
         spotLight.position.set(20, 40, 20);
         spotLight.castShadow = true;
@@ -593,22 +593,34 @@
         }
         function buildPark() {
             const park = new THREE.Group();
+            // 柔和鼠尾草绿草地
             const grass = new THREE.Mesh(new THREE.CircleGeometry(30, 48),
-                new THREE.MeshStandardMaterial({ color: 0x9db089, roughness: 0.9 }));
+                new THREE.MeshStandardMaterial({ color: 0x9db089, roughness: 0.92 }));
             grass.rotation.x = -Math.PI / 2; grass.position.y = -0.06;
             park.add(grass);
+            // 中央浅绿广场（木马脚下）
+            const plaza = new THREE.Mesh(new THREE.CircleGeometry(17.5, 48),
+                new THREE.MeshStandardMaterial({ color: 0xa8b894, roughness: 0.9 }));
+            plaza.rotation.x = -Math.PI / 2; plaza.position.y = -0.03;
+            park.add(plaza);
+            // 奶油步道环
             const path = new THREE.Mesh(new THREE.RingGeometry(17.5, 21, 48),
                 new THREE.MeshStandardMaterial({ color: 0xe3d9bd, roughness: 0.85 }));
             path.rotation.x = -Math.PI / 2; path.position.y = 0.02;
             park.add(path);
-            const pad1 = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 0.12, 24),
-                new THREE.MeshStandardMaterial({ color: 0xf0e6d2, roughness: 0.8 }));
+            // 设施圆台（扭蛋屋 / 大树 / 预留 ×2）
+            const padMat = new THREE.MeshStandardMaterial({ color: 0xf0e6d2, roughness: 0.8 });
+            const pad1 = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.12, 24), padMat);
             pad1.position.set(13, 0.06, 24); park.add(pad1);
-            const pad2 = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.2, 0.12, 24),
-                new THREE.MeshStandardMaterial({ color: 0xf0e6d2, roughness: 0.8 }));
-            pad2.position.set(-20, 0.06, -14); park.add(pad2);
+            const pad2 = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 0.12, 32), padMat);
+            pad2.position.set(-15, 0.07, 7); park.add(pad2);
+            const pad3 = new THREE.Mesh(new THREE.CylinderGeometry(6.8, 6.8, 0.12, 32), padMat);
+            pad3.position.set(-20, 0.06, -14); park.add(pad3);
+            const pad4 = new THREE.Mesh(new THREE.CylinderGeometry(6.8, 6.8, 0.12, 32), padMat);
+            pad4.position.set(18, 0.06, -20); park.add(pad4);
+            // 围栏
             const postMat = new THREE.MeshStandardMaterial({ color: 0xf6f1e7, roughness: 0.6 });
-            const POSTS = 40;
+            const POSTS = 44;
             const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.11, 1.1, 6), postMat, POSTS);
             const m4 = new THREE.Matrix4();
             for (let i = 0; i < POSTS; i++) {
@@ -621,39 +633,27 @@
                 xformGeo(new THREE.TorusGeometry(27.2, 0.06, 6, 64), 0, 0.9, 0, Math.PI / 2),
                 xformGeo(new THREE.TorusGeometry(27.2, 0.06, 6, 64), 0, 0.45, 0, Math.PI / 2)
             ]), postMat));
+            // 路灯 ×6 + 暖色地灯 ×4（把公园照亮）
             const lampPostMat = new THREE.MeshStandardMaterial({ color: 0x3a3550, roughness: 0.5 });
-            const lampBulbMat = new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffcc66, emissiveIntensity: 1.6, roughness: 0.4 });
-            const lampPosts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.1, 3.2, 6), lampPostMat, 4);
-            const lampBulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 10, 8), lampBulbMat, 4);
-            for (let i = 0; i < 4; i++) {
-                const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+            const lampBulbMat = new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffcc66, emissiveIntensity: 1.8, roughness: 0.4 });
+            const LAMPS = 6;
+            const lampPosts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.1, 3.2, 6), lampPostMat, LAMPS);
+            const lampBulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 10, 8), lampBulbMat, LAMPS);
+            for (let i = 0; i < LAMPS; i++) {
+                const a = (i / LAMPS) * Math.PI * 2 + Math.PI / 6;
                 m4.setPosition(Math.cos(a) * 22.5, 1.6, Math.sin(a) * 22.5);
                 lampPosts.setMatrixAt(i, m4);
                 m4.setPosition(Math.cos(a) * 22.5, 3.3, Math.sin(a) * 22.5);
                 lampBulbs.setMatrixAt(i, m4);
             }
             park.add(lampPosts, lampBulbs);
-            // Kenney 低模树/灌木/石头在此异步加载（见 loadKenneyNature）
-            // 发光小蘑菇 ×10（梦幻夜景点缀）
-            const mushStemMat = new THREE.MeshStandardMaterial({ color: 0xd8cfc0, roughness: 0.6 });
-            const MUSH = 10;
-            const mushStems = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.13, 0.7, 6), mushStemMat, MUSH);
-            const mushCaps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.42, 10, 8),
-                new THREE.MeshStandardMaterial({ roughness: 0.4 }), MUSH);
-            const GLOW = [0xff7ab8, 0x7ae0ff, 0xffd0f0, 0x9fb8ff];
-            for (let i = 0; i < MUSH; i++) {
-                const a = Math.random() * Math.PI * 2;
-                const r = 22 + Math.random() * 5;
-                const x = Math.cos(a) * r, z = Math.sin(a) * r;
-                const s = 0.7 + Math.random() * 0.9;
-                m4.compose(new THREE.Vector3(x, 0.35 * s, z), new THREE.Quaternion(), new THREE.Vector3(s, s, s));
-                mushStems.setMatrixAt(i, m4);
-                m4.compose(new THREE.Vector3(x, 0.72 * s, z), new THREE.Quaternion(), new THREE.Vector3(s, s, s));
-                mushCaps.setMatrixAt(i, m4);
-                mushCaps.setColorAt(i, new THREE.Color(GLOW[i % GLOW.length]));
+            for (let i = 0; i < 4; i++) {
+                const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                const pl = new THREE.PointLight(0xffd9a0, 1.35, 34, 1.5);
+                pl.position.set(Math.cos(a) * 20, 3.2, Math.sin(a) * 20);
+                park.add(pl);
             }
-            mushCaps.instanceColor.needsUpdate = true;
-            park.add(mushStems, mushCaps);
+            // Kenney 低模树/灌木/石头在此异步加载（见 loadKenneyNature）
             scene.add(park);
         }
 
@@ -677,15 +677,22 @@
                 big.traverse(o => { if (o.isMesh && o.material) treeLeafMats.push(o.material); });
                 // 散布的树/灌木/石头（避开门和两个圆台）
                 const spots = [
-                    { f: 'tree_oak.glb', p: [22, 0, -14], s: 3.2 },
-                    { f: 'tree_fat.glb', p: [-22, 0, -18], s: 3.4 },
-                    { f: 'tree_pineTallA_detailed.glb', p: [24, 0, 8], s: 3.0 },
-                    { f: 'tree_pineRoundA.glb', p: [-25, 0, 4], s: 3.2 },
-                    { f: 'plant_bushDetailed.glb', p: [-17, 0, 20], s: 2.6 },
-                    { f: 'plant_bushLarge.glb', p: [20, 0, 18], s: 2.8 },
-                    { f: 'plant_bushSmall.glb', p: [24, 0, -4], s: 2.4 },
-                    { f: 'rock_largeA.glb', p: [-8, 0, 26], s: 2.2 },
-                    { f: 'rock_largeB.glb', p: [10, 0, -26], s: 2.0 }
+                    { f: 'tree_oak.glb', p: [24, 0, -12], s: 3.4, r: 0.8 },
+                    { f: 'tree_fat.glb', p: [-24, 0, -16], s: 3.6, r: 2.1 },
+                    { f: 'tree_tall.glb', p: [-13, 0, -25], s: 3.4, r: 4.2 },
+                    { f: 'tree_pineTallA_detailed.glb', p: [14, 0, -26], s: 3.2, r: 5.3 },
+                    { f: 'tree_pineRoundA.glb', p: [26, 0, -2], s: 3.4, r: 2.6 },
+                    { f: 'tree_oak.glb', p: [26, 0, 14], s: 3.0, r: 1.2 },
+                    { f: 'tree_fat.glb', p: [-26, 0, 16], s: 3.2, r: 0.9 },
+                    { f: 'tree_pineRoundA.glb', p: [-26, 0, -4], s: 3.0, r: 1.7 },
+                    { f: 'plant_bushDetailed.glb', p: [-18, 0, 21], s: 2.8, r: 0.4 },
+                    { f: 'plant_bushLarge.glb', p: [19, 0, 19], s: 3.0, r: 0.2 },
+                    { f: 'plant_bushSmall.glb', p: [25, 0, -12], s: 2.6, r: 0.9 },
+                    { f: 'plant_bushLarge.glb', p: [-25, 0, -6], s: 2.8, r: 1.3 },
+                    { f: 'plant_bushSmall.glb', p: [-9, 0, 25], s: 2.4, r: 2.0 },
+                    { f: 'plant_bushDetailed.glb', p: [9, 0, 25], s: 2.6, r: 2.4 },
+                    { f: 'rock_largeA.glb', p: [-7, 0, 26], s: 2.2, r: 1.1 },
+                    { f: 'rock_largeB.glb', p: [11, 0, -25], s: 2.0, r: 3.1 }
                 ];
                 for (const sp of spots) {
                     const g2 = await loader.loadAsync('assets/kenney/' + sp.f);
@@ -701,6 +708,7 @@
                     kenneyGroup.add(m2);
                 }
                 scene.add(kenneyGroup);
+                setTreeSeason(treeSeason);
                 return true;
             } catch (e) {
                 console.warn('Kenney 素材加载失败（用程序化树兜底）', e);
